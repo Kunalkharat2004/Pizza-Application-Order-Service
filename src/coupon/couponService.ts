@@ -7,7 +7,7 @@ export class CouponService {
   }
 
   async getCouponById(id: string) {
-    return await couponModel.findOne({ _id: id });
+    return await couponModel.findById(id);
   }
   async updateCoupon(id: string, { title, code, discount, expirationDate, tenantId }: Coupon) { 
 
@@ -26,6 +26,14 @@ export class CouponService {
       throw new Error("Coupon not found or update failed");
     }
     return updatedCoupon;
+  }
+
+  async deleteCoupon(id: string) { 
+    const deletedCoupon = await couponModel.findByIdAndDelete(id);
+    if (!deletedCoupon) {
+      throw new Error("Coupon not found or delete failed");
+    }
+    return deletedCoupon;
   }
 }
 

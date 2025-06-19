@@ -14,6 +14,7 @@ const router = Router();
 const couponService = new CouponService();
 const couponController = new Coupon(couponService,logger);
 
+// Create coupon
 router.post(
     "/",
     authenticate,
@@ -23,6 +24,7 @@ router.post(
     asyncWrapper(couponController.create)
 )
 
+// Update coupon 
 router.patch(
     "/:id",
     authenticate,
@@ -32,5 +34,12 @@ router.patch(
     asyncWrapper(couponController.update)
 )
 
+// Delete coupon
+router.delete(
+    "/:id",
+    authenticate,
+    canAccess([ROLES.ADMIN, ROLES.MANAGER]),
+    asyncWrapper(couponController.delete)
+)
 
 export default router;
