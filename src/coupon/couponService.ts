@@ -15,6 +15,10 @@ export class CouponService {
   async getCouponById(id: string) {
     return await couponModel.findById(id);
   }
+  async getCouponByCodeAndTenantId({ code,tenantId}:{code: string, tenantId: string}) {
+    return await couponModel.findOne({ code, tenantId });
+}
+
   async updateCoupon(
     id: string,
     { title, code, discount, validTill, tenantId }: Coupon,

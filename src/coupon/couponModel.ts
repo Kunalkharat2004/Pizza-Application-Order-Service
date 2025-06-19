@@ -40,4 +40,6 @@ couponSchema.pre("save", function (next) {
   next();
 });
 
+couponSchema.index({ code: 1, tenantId: 1 }, { unique: true });
+
 export default mongoose.model<Coupon>("Coupon", couponSchema, "coupons");

@@ -95,4 +95,31 @@ export class Coupon {
 
     return res.json({});
   };
+
+    verifyCoupon = async (req: Request, res: Response) => { 
+        const { code, tenantId } = req.body;
+        this.logger.info("Verifying coupon", { code, tenantId });
+
+        const coupon = await this.couponService.getCouponByCodeAndTenantId({ code, tenantId });
+        if (!coupon) {
+            this.logger.error("Coupon not found", { code, tenantId });
+            return res.json({
+              valid: false,
+              discount: 0,
+            });
+        }
+        if( new Date(coupon.validTill) < new Date()) {
+            this.logger.error("Coupon has expired", { code, tenantId });
+            return res.json({
+                valid: false,
+                discount: 0,
+            })
+        }
+        this.logger.info("Coupon verified successfully", coupon._id);
+
+        return res.json({
+            valid: true,
+            discount: coupon.discount,
+        })
+    }
 }

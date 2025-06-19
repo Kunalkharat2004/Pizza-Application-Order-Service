@@ -50,3 +50,26 @@ export const couponValidator = checkSchema({
 //     discount: 20,
 //     expirationDate: "2025-12-31"
 // }
+
+export const couponVerifier = checkSchema({
+  code: {
+    in: ["body"],
+    isString: {
+      errorMessage: "Code must be a string",
+    },
+    notEmpty: {
+      errorMessage: "Code cannot be empty",
+    },
+    matches: {
+      options: [/^[A-Z0-9]+$/],
+      errorMessage: "Code must be alphanumeric and uppercase",
+    },
+  },
+
+    tenantId: {
+        in: ["body"],
+        isString: {
+            errorMessage: "Tenant ID must be a string",
+        },
+  }
+});

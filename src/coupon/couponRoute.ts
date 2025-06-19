@@ -3,7 +3,7 @@ import authenticate from "../common/middleware/authenticate";
 import canAccess from "../common/middleware/canAccess";
 import { ROLES } from "../common/constants";
 import { handleValidationErrors } from "../common/middleware/validate-schema";
-import { couponValidator } from "./couponValidator";
+import { couponValidator, couponVerifier } from "./couponValidator";
 import { Coupon } from "./couponController";
 import logger from "../config/logger";
 import { CouponService } from "./couponService";
@@ -40,6 +40,14 @@ router.delete(
     authenticate,
     canAccess([ROLES.ADMIN, ROLES.MANAGER]),
     asyncWrapper(couponController.delete)
+)
+
+// Verify coupon
+router.post(
+    "/verify",
+    couponVerifier,
+    handleValidationErrors,
+    asyncWrapper(couponController.verifyCoupon)
 )
 
 export default router;
