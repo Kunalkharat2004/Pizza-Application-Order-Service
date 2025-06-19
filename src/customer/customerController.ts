@@ -21,7 +21,7 @@ export class Customer {
       email,
     });
 
-      const customer = await this.customerService.getCustomerService({
+    const customer = await this.customerService.getCustomerService({
       userId,
       firstName,
       lastName,
@@ -33,5 +33,24 @@ export class Customer {
 
     this.logger.info("Customer retrieved successfully", customer._id);
     res.status(201).json(customer);
+  };
+
+  updateAddress = async (req: Request, res: Response) => {
+    
+    const { sub: userId } = req.auth;
+    const { id } = req.params;
+    const { address } = req.body;
+    this.logger.info("Updating address for customer", {
+      userId,
+      address,
+    });
+    const updatedCustomer = await this.customerService.updateAddressService({userId, id, address});
+
+    if (!updatedCustomer) {
+      throw createHttpError(500, "Failed to update address");
+    }
+
+    this.logger.info("Address updated successfully", updatedCustomer._id);
+    res.status(200).json(updatedCustomer);
   }
 }
