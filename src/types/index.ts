@@ -9,6 +9,6 @@ export interface AuthRequest extends Request {
     sub: string;
     role: string;
     id?: string;
-    tenant: string;
+    tenantId: string;
   };
 }
