@@ -23,5 +23,14 @@ router.post(
     asyncWrapper(couponController.create)
 )
 
+router.patch(
+    "/:id",
+    authenticate,
+    canAccess([ROLES.ADMIN, ROLES.MANAGER]),
+    couponValidator,
+    handleValidationErrors,
+    asyncWrapper(couponController.update)
+)
+
 
 export default router;
