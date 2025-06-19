@@ -12,14 +12,14 @@ export class Coupon {
   ) {}
 
   create = async (req: Request, res: Response) => {
-    const { title, code, discount, expirationDate } = req.body;
+    const { title, code, discount, validTill } = req.body;
     const tenantId = req.auth?.tenantId;
 
     this.logger.info("Creating coupon", {
       title,
       code,
       discount,
-      expirationDate,
+      validTill,
       tenantId,
     });
 
@@ -27,7 +27,7 @@ export class Coupon {
       title,
       code,
       discount,
-      expirationDate,
+      validTill,
       tenantId,
     });
     if (!coupon) {
@@ -40,7 +40,7 @@ export class Coupon {
 
   update = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { title, code, discount, expirationDate } = req.body;
+    const { title, code, discount, validTill } = req.body;
     const tenantId = req.auth?.tenantId;
 
     if (req.auth?.role !== ROLES.ADMIN) {
@@ -58,42 +58,41 @@ export class Coupon {
       title,
       code,
       discount,
-      expirationDate,
+      validTill,
       tenantId,
     });
     const updatedCoupon = await this.couponService.updateCoupon(id, {
       title,
       code,
       discount,
-      expirationDate,
+      validTill,
       tenantId,
     });
 
     return res.json(updatedCoupon);
   };
 
-    delete = async (req: Request, res: Response) => { 
+  delete = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const tenantId = req.auth?.tenantId;
 
-        const { id } = req.params;
-        const tenantId = req.auth?.tenantId;
+    this.logger.info("Deleting coupon", { id, tenantId });
 
-        this.logger.info("Deleting coupon", { id, tenantId });
-
-        const couponExists = await this.couponService.getCouponById(id);
-        if (!couponExists) {
-            this.logger.error("Coupon not found", { id, tenantId });
-            throw createHttpError(404, "Coupon not found");
-        }
-
-        if (req.auth?.role !== ROLES.ADMIN) {
-            if(tenantId !== couponExists.tenantId) {
-                this.logger.error("Unauthorized access to coupon", { id, tenantId });
-                throw createHttpError(403, "Unauthorized access to this coupon");
-            }
-        }
-
-        await this.couponService.deleteCoupon(id);
-
-        return res.json({});
+    const couponExists = await this.couponService.getCouponById(id);
+    if (!couponExists) {
+      this.logger.error("Coupon not found", { id, tenantId });
+      throw createHttpError(404, "Coupon not found");
     }
+
+    if (req.auth?.role !== ROLES.ADMIN) {
+      if (tenantId !== couponExists.tenantId) {
+        this.logger.error("Unauthorized access to coupon", { id, tenantId });
+        throw createHttpError(403, "Unauthorized access to this coupon");
+      }
+    }
+
+    await this.couponService.deleteCoupon(id);
+
+    return res.json({});
+  };
 }

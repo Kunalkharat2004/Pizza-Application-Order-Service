@@ -2,33 +2,41 @@ import couponModel from "./couponModel";
 import { Coupon } from "./couponTypes";
 
 export class CouponService {
-    async createCoupon({title, code, discount, expirationDate, tenantId}:Coupon) {
-        return await couponModel.create({title, code, discount, expirationDate, tenantId});
+  async createCoupon({ title, code, discount, validTill, tenantId }: Coupon) {
+    return await couponModel.create({
+      title,
+      code,
+      discount,
+      validTill,
+      tenantId,
+    });
   }
 
   async getCouponById(id: string) {
     return await couponModel.findById(id);
   }
-  async updateCoupon(id: string, { title, code, discount, expirationDate, tenantId }: Coupon) { 
-
+  async updateCoupon(
+    id: string,
+    { title, code, discount, validTill, tenantId }: Coupon,
+  ) {
     const updatedCoupon = await couponModel.findByIdAndUpdate(
       id,
       {
         title,
         code,
         discount,
-        expirationDate,
-        tenantId
+        validTill,
+        tenantId,
       },
-      { new: true, runValidators: true }
-    )
+      { new: true, runValidators: true },
+    );
     if (!updatedCoupon) {
       throw new Error("Coupon not found or update failed");
     }
     return updatedCoupon;
   }
 
-  async deleteCoupon(id: string) { 
+  async deleteCoupon(id: string) {
     const deletedCoupon = await couponModel.findByIdAndDelete(id);
     if (!deletedCoupon) {
       throw new Error("Coupon not found or delete failed");
@@ -36,4 +44,3 @@ export class CouponService {
     return deletedCoupon;
   }
 }
-
