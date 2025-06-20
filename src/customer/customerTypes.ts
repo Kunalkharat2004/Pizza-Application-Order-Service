@@ -1,6 +1,10 @@
 export interface Address {
-    text: string;
-    isDefault: boolean;
+  label: "Home" | "Work" | "Other"; // e.g. “Home” or “Work”
+  text: string; // full address line
+  city: string; // city name
+  postalCode: string; // ZIP / PIN
+  phone: string; // phone number
+  isDefault: boolean; // mark your primary address
 }
 
 export interface Customer {

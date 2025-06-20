@@ -1,0 +1,102 @@
+[
+  {
+    "address": {
+      "label": "Home",
+      "text": "123 Main Street, Delhi 110034",
+      "city": "Delhi",
+      "postalCode": "110034",
+      "phone": "9876543210",
+      "isDefault": true
+    }
+  },
+  {
+    "address": {
+      "label": "Work",
+      "text": "9th Floor, Cyber City, Tower B",
+      "city": "Gurgaon",
+      "postalCode": "122002",
+      "phone": "9123456780",
+      "isDefault": false
+    }
+  },
+  {
+    "address": {
+      "label": "Other",
+      "text": "Flat 204, Green Heights, Baner",
+      "city": "Pune",
+      "postalCode": "411045",
+      "phone": "9012345678",
+      "isDefault": false
+    }
+  },
+  {
+    "address": {
+      "label": "Home",
+      "text": "12/4 MG Road, Near City Mall",
+      "city": "Mumbai",
+      "postalCode": "400001",
+      "phone": "9876501234",
+      "isDefault": false
+    }
+  },
+  {
+    "address": {
+      "label": "Work",
+      "text": "Tech Park, Whitefield",
+      "city": "Bangalore",
+      "postalCode": "560066",
+      "phone": "9988776655",
+      "isDefault": false
+    }
+  },
+  {
+    "address": {
+      "label": "Other",
+      "text": "1st Cross, Gandhi Nagar",
+      "city": "Chennai",
+      "postalCode": "600001",
+      "phone": "9090909090",
+      "isDefault": false
+    }
+  },
+  {
+    "address": {
+      "label": "Home",
+      "text": "45 Residency Road, Alkapuri",
+      "city": "Vadodara",
+      "postalCode": "390007",
+      "phone": "9765432109",
+      "isDefault": false
+    }
+  },
+  {
+    "address": {
+      "label": "Work",
+      "text": "Infotech Tower, Phase II",
+      "city": "Hyderabad",
+      "postalCode": "500081",
+      "phone": "8888888888",
+      "isDefault": false
+    }
+  },
+  {
+    "address": {
+      "label": "Other",
+      "text": "Sunshine Apartments, New Town",
+      "city": "Kolkata",
+      "postalCode": "700156",
+      "phone": "9654321098",
+      "isDefault": false
+    }
+  },
+  {
+    "address": {
+      "label": "Home",
+      "text": "Plot No 56, Sector 17, Vashi",
+      "city": "Navi Mumbai",
+      "postalCode": "400703",
+      "phone": "9812345678",
+      "isDefault": false
+    }
+  }
+]

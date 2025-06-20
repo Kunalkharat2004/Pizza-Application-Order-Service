@@ -32,7 +32,7 @@ export class Customer {
     }
 
     this.logger.info("Customer retrieved successfully", customer._id);
-    res.status(201).json(customer);
+    res.json(customer);
   };
 
   updateAddress = async (req: Request, res: Response) => {
