@@ -4,7 +4,9 @@ import { CouponService } from "./couponService";
 import { Request } from "express-jwt";
 import createHttpError from "http-errors";
 import { ROLES } from "../common/constants";
-import { Coupon } from "./couponTypes";
+import { Coupon, FilterData } from "./couponTypes";
+import { customPaginateLabels } from "../config/customPaginateLabels";
+import { AggregatePaginateResult } from "mongoose";
 
 export class CouponController {
   constructor(
@@ -32,22 +34,46 @@ export class CouponController {
     res.status(201).json(coupon);
   };
 
-  getAll = async (req: Request, res: Response) => { 
+  getAll = async (req: Request, res: Response) => {
+    const { q = "", restaurantId, discount } = req.query;
+    const filters: FilterData = {};
 
-    let coupons: Coupon[] | null = null;
+    if (restaurantId) filters.restaurantId = String(restaurantId);
+    if (discount) filters.discount = parseFloat(String(discount));
+
+    const paginateOptions = {
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 10,
+      customLabels: customPaginateLabels,
+    };
+
     const tenantId = req.auth?.tenantId;
-    
-    if (req.auth?.role !== ROLES.ADMIN) {
-          this.logger.info("Fetching all coupons for tenant", { tenantId });
-      coupons = await this.couponService.getAllCouponsForManager(tenantId);
-      return res.json(coupons);
-    }
-    
-    this.logger.info("Fetching all coupons for admin");
-    coupons = await this.couponService.getAllCoupons();
+    let pagedResult: AggregatePaginateResult<Coupon>;
 
-    return res.json(coupons);
-  }
+    if (req.auth?.role !== ROLES.ADMIN) {
+      this.logger.info(
+        "Fetching paginated coupons for tenant with search/filters",
+        { tenantId, q, filters },
+      );
+      pagedResult = await this.couponService.getAllCouponsForManager(
+        tenantId,
+        String(q),
+        filters,
+        paginateOptions,
+      );
+    } else {
+      this.logger.info(
+        "Fetching paginated coupons for admin with search/filters",
+      );
+      pagedResult = await this.couponService.getAllCoupons(
+        String(q),
+        filters,
+        paginateOptions,
+      );
+    }
+
+    return res.json(pagedResult);
+  };
 
   update = async (req: Request, res: Response) => {
     const { id } = req.params;

@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import createHttpError from "http-errors";
 import couponModel from "./couponModel";
-import { Coupon } from "./couponTypes";
+import { Coupon, FilterData } from "./couponTypes";
+import { IPaginateOptions } from "../types";
+import { AggregatePaginateResult } from "mongoose";
 
 export class CouponService {
   async createCoupon({ title, code, discount, validTill, tenantId }: Coupon) {
@@ -16,7 +19,13 @@ export class CouponService {
   async getCouponById(id: string) {
     return await couponModel.findById(id);
   }
-  async getCouponByCodeAndTenantId({ code,tenantId}:{code: string, tenantId: string}) {
+  async getCouponByCodeAndTenantId({
+    code,
+    tenantId,
+  }: {
+    code: string;
+    tenantId: string;
+  }) {
     const coupon = await couponModel.findOne({ code });
     if (!coupon) {
       throw createHttpError(404, "Invalid Coupon");
@@ -26,21 +35,73 @@ export class CouponService {
     }
     return coupon;
   }
-  
-  async getAllCouponsForManager(tenantId: string) { 
-    const coupons = await couponModel.find({ tenantId });
-    if (!coupons || coupons.length === 0) {
+
+  async getAllCouponsForManager(
+    tenantId: string,
+    q: string,
+    filtersData: FilterData,
+    paginateOptions: IPaginateOptions,
+  ): Promise<AggregatePaginateResult<Coupon>> {
+    // Build your match
+    const match: Record<string, any> = { tenantId };
+
+    if (typeof filtersData.discount === "number") {
+      match.discount = filtersData.discount;
+    }
+
+    if (q) {
+      match.title = { $regex: q, $options: "i" };
+    }
+
+    const aggregate = couponModel.aggregate([{ $match: match }]);
+    const result = await couponModel.aggregatePaginate(
+      aggregate,
+      paginateOptions,
+    );
+
+    if (!result) {
       throw createHttpError(404, "No coupons found for this tenant");
     }
-    return coupons;
+
+    return result;
   }
 
-  async getAllCoupons() {
-    const coupons = await couponModel.find();
-    if (!coupons || coupons.length === 0) {
-      throw createHttpError(404, "No coupons found");
+  async getAllCoupons(
+    q: string,
+    filtersData: FilterData,
+    paginateOptions: IPaginateOptions,
+  ) {
+    const match: Record<string, any> = {};
+
+    if (filtersData.restaurantId) {
+      match.tenantId = filtersData.restaurantId;
     }
-    return coupons;
+    // if they passed a discount filter
+    if (typeof filtersData.discount === "number") {
+      match.discount = filtersData.discount;
+    }
+
+    // only add a title‐regex if q is truthy
+    if (q) {
+      match.title = { $regex: q, $options: "i" };
+    }
+
+    const aggregate = couponModel.aggregate([{ $match: match }]);
+
+    const result = await couponModel.aggregatePaginate(
+      aggregate,
+      paginateOptions,
+    );
+    if (!result) {
+      throw new Error("No coupons found");
+    }
+    return result;
+
+    // const coupons = await couponModel.find();
+    // if (!coupons || coupons.length === 0) {
+    //   throw createHttpError(404, "No coupons found");
+    // }
+    // return coupons;
   }
 
   async updateCoupon(

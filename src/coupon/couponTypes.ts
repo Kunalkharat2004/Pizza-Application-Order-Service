@@ -7,3 +7,9 @@ export interface Coupon {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export interface FilterData {
+  q?: string;
+  restaurantId?: string;
+  discount?: number;
+}
