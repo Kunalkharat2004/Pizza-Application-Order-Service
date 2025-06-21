@@ -1,3 +1,4 @@
+import createHttpError from "http-errors";
 import couponModel from "./couponModel";
 import { Coupon } from "./couponTypes";
 
@@ -16,8 +17,31 @@ export class CouponService {
     return await couponModel.findById(id);
   }
   async getCouponByCodeAndTenantId({ code,tenantId}:{code: string, tenantId: string}) {
-    return await couponModel.findOne({ code, tenantId });
-}
+    const coupon = await couponModel.findOne({ code });
+    if (!coupon) {
+      throw createHttpError(404, "Invalid Coupon");
+    }
+    if (coupon.tenantId !== tenantId) {
+      throw createHttpError(403, "Unauthorized access to this coupon");
+    }
+    return coupon;
+  }
+  
+  async getAllCouponsForManager(tenantId: string) { 
+    const coupons = await couponModel.find({ tenantId });
+    if (!coupons || coupons.length === 0) {
+      throw createHttpError(404, "No coupons found for this tenant");
+    }
+    return coupons;
+  }
+
+  async getAllCoupons() {
+    const coupons = await couponModel.find();
+    if (!coupons || coupons.length === 0) {
+      throw createHttpError(404, "No coupons found");
+    }
+    return coupons;
+  }
 
   async updateCoupon(
     id: string,

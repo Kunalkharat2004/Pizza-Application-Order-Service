@@ -4,7 +4,7 @@ import canAccess from "../common/middleware/canAccess";
 import { ROLES } from "../common/constants";
 import { handleValidationErrors } from "../common/middleware/validate-schema";
 import { couponValidator, couponVerifier } from "./couponValidator";
-import { Coupon } from "./couponController";
+import { CouponController } from "./couponController";
 import logger from "../config/logger";
 import { CouponService } from "./couponService";
 import { asyncWrapper } from "../utils";
@@ -12,7 +12,7 @@ import { asyncWrapper } from "../utils";
 const router = Router();
 
 const couponService = new CouponService();
-const couponController = new Coupon(couponService,logger);
+const couponController = new CouponController(couponService, logger);
 
 // Create coupon
 router.post(
@@ -22,6 +22,14 @@ router.post(
     couponValidator,
     handleValidationErrors,
     asyncWrapper(couponController.create)
+)
+
+// GET all coupons
+router.get(
+    "/",
+    authenticate,
+    canAccess([ROLES.ADMIN, ROLES.MANAGER]),
+    asyncWrapper(couponController.getAll)
 )
 
 // Update coupon 

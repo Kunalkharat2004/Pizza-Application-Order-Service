@@ -4,8 +4,9 @@ import { CouponService } from "./couponService";
 import { Request } from "express-jwt";
 import createHttpError from "http-errors";
 import { ROLES } from "../common/constants";
+import { Coupon } from "./couponTypes";
 
-export class Coupon {
+export class CouponController {
   constructor(
     private readonly couponService: CouponService,
     private readonly logger: Logger,
@@ -13,15 +14,8 @@ export class Coupon {
 
   create = async (req: Request, res: Response) => {
     const { title, code, discount, validTill } = req.body;
-    const tenantId = req.auth?.tenantId;
 
-    this.logger.info("Creating coupon", {
-      title,
-      code,
-      discount,
-      validTill,
-      tenantId,
-    });
+    const tenantId = req.body.tenantId || req.auth?.tenantId;
 
     const coupon = await this.couponService.createCoupon({
       title,
@@ -37,6 +31,23 @@ export class Coupon {
     this.logger.info("Coupon created successfully", coupon._id);
     res.status(201).json(coupon);
   };
+
+  getAll = async (req: Request, res: Response) => { 
+
+    let coupons: Coupon[] | null = null;
+    const tenantId = req.auth?.tenantId;
+    
+    if (req.auth?.role !== ROLES.ADMIN) {
+          this.logger.info("Fetching all coupons for tenant", { tenantId });
+      coupons = await this.couponService.getAllCouponsForManager(tenantId);
+      return res.json(coupons);
+    }
+    
+    this.logger.info("Fetching all coupons for admin");
+    coupons = await this.couponService.getAllCoupons();
+
+    return res.json(coupons);
+  }
 
   update = async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -96,30 +107,28 @@ export class Coupon {
     return res.json({});
   };
 
-    verifyCoupon = async (req: Request, res: Response) => { 
-        const { code, tenantId } = req.body;
-        this.logger.info("Verifying coupon", { code, tenantId });
+  verifyCoupon = async (req: Request, res: Response) => {
+    const { code, tenantId } = req.body;
+    this.logger.info("Verifying coupon", { code, tenantId });
 
-        const coupon = await this.couponService.getCouponByCodeAndTenantId({ code, tenantId });
-        if (!coupon) {
-            this.logger.error("Coupon not found", { code, tenantId });
-            return res.json({
-              valid: false,
-              discount: 0,
-            });
-        }
-        if( new Date(coupon.validTill) < new Date()) {
-            this.logger.error("Coupon has expired", { code, tenantId });
-            return res.json({
-                valid: false,
-                discount: 0,
-            })
-        }
-        this.logger.info("Coupon verified successfully", coupon._id);
-
-        return res.json({
-            valid: true,
-            discount: coupon.discount,
-        })
+    const coupon = await this.couponService.getCouponByCodeAndTenantId({
+      code,
+      tenantId,
+    });
+    if (new Date(coupon.validTill) < new Date()) {
+      this.logger.error("Coupon has expired", { code, tenantId });
+      return res.json({
+        valid: false,
+        exp: true,
+        discount: 0,
+      });
     }
+    this.logger.info("Coupon verified successfully", coupon._id);
+
+    return res.json({
+      valid: true,
+      exp: false,
+      discount: coupon.discount,
+    });
+  };
 }
