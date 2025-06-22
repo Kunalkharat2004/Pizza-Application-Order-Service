@@ -86,7 +86,7 @@ export class CouponService {
       match.title = { $regex: q, $options: "i" };
     }
 
-    const aggregate = couponModel.aggregate([{ $match: match }]);
+    const aggregate = couponModel.aggregate([{ $match: match },{ $sort: { createdAt: -1 } }]);  
 
     const result = await couponModel.aggregatePaginate(
       aggregate,

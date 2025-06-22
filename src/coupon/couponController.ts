@@ -78,7 +78,7 @@ export class CouponController {
   update = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { title, code, discount, validTill } = req.body;
-    const tenantId = req.auth?.tenantId;
+    const tenantId = req.auth?.tenantId || req.body.tenantId;
 
     if (req.auth?.role !== ROLES.ADMIN) {
       const couponExists = await this.couponService.getCouponById(id);
