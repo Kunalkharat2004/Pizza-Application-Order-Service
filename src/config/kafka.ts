@@ -1,7 +1,7 @@
 import { Consumer, EachMessagePayload, Kafka } from "kafkajs";
 import { MessageBroker } from "../types/broker";
 import { handleProductUpdate } from "../productCache/productCacheHandler";
-import { handleToppingUpdate } from "../toppingCache/handleToppingUpdate";
+import { handleToppingUpdate } from "../toppingCache/toppingCacheHandler";
 
 export class KafkaBroker implements MessageBroker {
   private consumer: Consumer;
