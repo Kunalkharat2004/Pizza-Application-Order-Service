@@ -96,12 +96,6 @@ export class CouponService {
       throw new Error("No coupons found");
     }
     return result;
-
-    // const coupons = await couponModel.find();
-    // if (!coupons || coupons.length === 0) {
-    //   throw createHttpError(404, "No coupons found");
-    // }
-    // return coupons;
   }
 
   async updateCoupon(

@@ -5,3 +5,8 @@ auth:
   jwksUri: http://localhost:3200/.well-known/jwks.json
 database:
   url: mongodb://localhost:27017/order-db?w=1
+
+kafka:
+  clientId: order-service
+  brokers: [localhost:9092]
+  topics: ["product","topping"]
