@@ -15,6 +15,7 @@ const startServer = async () => {
     messageBroker = createMessageBroker();
     await messageBroker.connectConsumer();
     await messageBroker.consumeMessage(config.get("kafka.topics"), false);
+    logger.info("Connected to broker");
 
     app
       .listen(PORT, () => console.log(`Listening on port ${PORT}`))
