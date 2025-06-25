@@ -16,7 +16,13 @@ export class Order {
     const discountPercentage = await this.getDiscount(couponCode, tenantId);
     const discountAmount = Math.round((totalPrice * discountPercentage) / 100);
 
-    res.json({ totalPrice, discountAmount });
+      const totalPriceAfterDiscount = totalPrice - discountAmount;
+      const TAX_PERCENTAGE = 18;
+      const taxes = Math.round((totalPriceAfterDiscount * TAX_PERCENTAGE) / 100);
+      
+      const finalAmount = totalPriceAfterDiscount + taxes;
+
+    res.json({ totalPrice, discountAmount, taxes, finalAmount });
   };
 
   private calculateTotalCartPrice = async (cart: CartItems[]) => {
