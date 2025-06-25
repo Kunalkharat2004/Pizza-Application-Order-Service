@@ -10,7 +10,6 @@ import couponModel from "../coupon/couponModel";
 export class Order {
   create = async (req: Request, res: Response) => {
     const totalPrice = await this.calculateTotalCartPrice(req.body.cart);
-    console.log("Total price: ", totalPrice);
 
     const { couponCode, tenantId } = req.body;
     const discountPercentage = await this.getDiscount(couponCode, tenantId);
@@ -19,8 +18,10 @@ export class Order {
       const totalPriceAfterDiscount = totalPrice - discountAmount;
       const TAX_PERCENTAGE = 18;
       const taxes = Math.round((totalPriceAfterDiscount * TAX_PERCENTAGE) / 100);
-      
-      const finalAmount = totalPriceAfterDiscount + taxes;
+
+      const deliveryCharges = totalPrice >= 500 ? 0 : 20; // HARDCODED DELIVERY CHARGE
+
+      const finalAmount = totalPriceAfterDiscount + taxes + deliveryCharges;
 
     res.json({ totalPrice, discountAmount, taxes, finalAmount });
   };
