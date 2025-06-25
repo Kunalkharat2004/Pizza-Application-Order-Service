@@ -1,3 +1,6 @@
+import { Request } from "express";
+import { Address } from "../customer/customerTypes";
+
 export interface IAttributeConfiguration {
   name: string;
   widgetType: "radio" | "switch";
@@ -66,4 +69,14 @@ export interface CartItems
   };
   qty: number;
   hash?: string;
+}
+
+export interface OrderRequest extends Request{
+  cart: CartItems[];
+  couponCode?: string;
+  tenantId: string;
+  comment?: string;
+  address: Address;
+  customerId: string;
+  paymentMode: "card" | "cod"; // cash on delivery or card payment
 }

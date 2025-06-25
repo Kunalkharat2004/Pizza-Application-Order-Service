@@ -9,14 +9,13 @@ import couponModel from "../coupon/couponModel";
 
 export class Order {
   create = async (req: Request, res: Response) => {
-    console.log(req.body.cart);
     const totalPrice = await this.calculateTotalCartPrice(req.body.cart);
     console.log("Total price: ", totalPrice);
 
     const { couponCode, tenantId } = req.body;
     const discountPercentage = await this.getDiscount(couponCode, tenantId);
-      const discountAmount = Math.round((totalPrice * discountPercentage) / 100);
-      
+    const discountAmount = Math.round((totalPrice * discountPercentage) / 100);
+
     res.json({ totalPrice, discountAmount });
   };
 
