@@ -1,17 +1,18 @@
 import { Request, Response } from "express";
-import { CartItems } from "./OrderTypes";
 import productCacheModel from "../productCache/productCacheModel";
 import toppingCacheModel from "../toppingCache/toppingCacheModel";
 import { ProductPricingCache } from "../productCache/productCacheTypes";
 import { ToppingCache } from "../toppingCache/toppingCacheTypes";
 import createHttpError from "http-errors";
 import couponModel from "../coupon/couponModel";
+import { CartItems, OrderStatus, PaymentStatus } from "./orderTypes";
+import orderModel from "./orderModel";
 
 export class Order {
   create = async (req: Request, res: Response) => {
     const totalPrice = await this.calculateTotalCartPrice(req.body.cart);
 
-    const { couponCode, tenantId } = req.body;
+    const { cart,address, comment, customerId,paymentMode,couponCode, tenantId } = req.body;
     const discountPercentage = await this.getDiscount(couponCode, tenantId);
     const discountAmount = Math.round((totalPrice * discountPercentage) / 100);
 
@@ -21,9 +22,24 @@ export class Order {
 
       const deliveryCharges = totalPrice >= 500 ? 0 : 20; // HARDCODED DELIVERY CHARGE
 
-      const finalAmount = totalPriceAfterDiscount + taxes + deliveryCharges;
+    const finalAmount = totalPriceAfterDiscount + taxes + deliveryCharges;
+    
+    const newOrder = await orderModel.create({
+      cart,
+      address,
+      comment,
+      customerId,
+      total: finalAmount,
+      discount: discountAmount,
+      taxes,
+      deliveryCharges,
+      tenantId,
+      paymentMode,
+      paymentStatus: PaymentStatus.PENDING, // default to pending
+      orderStatus: OrderStatus.RECEIVED, // default to received
+    })
 
-    res.json({ totalPrice, discountAmount, taxes, finalAmount });
+    res.json({_id: newOrder._id});
   };
 
   private calculateTotalCartPrice = async (cart: CartItems[]) => {

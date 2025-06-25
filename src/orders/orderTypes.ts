@@ -1,5 +1,5 @@
-import { Request } from "express";
 import { Address } from "../customer/customerTypes";
+import mongoose from "mongoose";
 
 export interface IAttributeConfiguration {
   name: string;
@@ -71,12 +71,37 @@ export interface CartItems
   hash?: string;
 }
 
-export interface OrderRequest extends Request{
+export enum PaymentMode {
+  CASH = "cash",
+  CARD = "card",
+}
+
+export enum OrderStatus {
+  RECEIVED = "received",
+  CONFIRMED = "confirmed",
+  PREPARING = "preparing",
+  OUT_FOR_DELIVERY = "out_for_delivery",
+  DELIVERED = "delivered",
+}
+
+export enum PaymentStatus {
+  PENDING = "pending",
+  PAID = "paid",
+  FAILED = "failed",
+}
+
+export interface Order {
   cart: CartItems[];
-  couponCode?: string;
+  customerId: mongoose.Types.ObjectId;
+  total: number;
+  discount: number;
+  taxes: number;
+  deliveryCharges: number;
+  address: Address;
   tenantId: string;
   comment?: string;
-  address: Address;
-  customerId: string;
-  paymentMode: "card" | "cod"; // cash on delivery or card payment
+  paymentMode: PaymentMode;
+  orderStatus: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentId?: string;
 }

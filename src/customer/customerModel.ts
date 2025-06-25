@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { Address, Customer } from "./customerTypes";
 
-const addressSchema = new mongoose.Schema<Address>(
+export const addressSchema = new mongoose.Schema<Address>(
   {
     label: {
       type: String,
