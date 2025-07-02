@@ -33,7 +33,7 @@ export class Order {
     
     if (!idempotency) {
       const session = await mongoose.startSession();
-      session.startTransaction();
+      await session.startTransaction();
 
       try {
         newOrder = await orderModel.create([
@@ -53,11 +53,12 @@ export class Order {
           },
         ], { session });
         
+        
         await idempotencyModel.create(
           [{ key: idempotencyKey, response: newOrder[0] }],
           { session }
         );
-
+        
         await session.commitTransaction();
       } catch (err) {
         await session.abortTransaction();
