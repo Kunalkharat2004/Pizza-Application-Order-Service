@@ -7,6 +7,8 @@ import createHttpError from "http-errors";
 import couponModel from "../coupon/couponModel";
 import { CartItems, OrderStatus, PaymentStatus } from "./orderTypes";
 import orderModel from "./orderModel";
+import idempotencyModel from "../idempotency/idempotencyModel";
+import mongoose from "mongoose";
 
 export class Order {
   create = async (req: Request, res: Response) => {
@@ -23,23 +25,53 @@ export class Order {
       const deliveryCharges = totalPrice >= 500 ? 0 : 20; // HARDCODED DELIVERY CHARGE
 
     const finalAmount = totalPriceAfterDiscount + taxes + deliveryCharges;
-    
-    const newOrder = await orderModel.create({
-      cart,
-      address,
-      comment,
-      customerId,
-      total: finalAmount,
-      discount: discountAmount,
-      taxes,
-      deliveryCharges,
-      tenantId,
-      paymentMode,
-      paymentStatus: PaymentStatus.PENDING, // default to pending
-      orderStatus: OrderStatus.RECEIVED, // default to received
-    })
 
-    res.json({_id: newOrder._id});
+    const idempotencyKey = req.headers["idempotency-key"];
+    const idempotency = await idempotencyModel.findOne({ key: idempotencyKey });
+
+    let newOrder = idempotency ? [idempotency.response] : [];
+    
+    if (!idempotency) {
+      const session = await mongoose.startSession();
+      session.startTransaction();
+
+      try {
+        newOrder = await orderModel.create([
+          {
+            cart,
+            address,
+            comment,
+            customerId,
+            total: finalAmount,
+            discount: discountAmount,
+            taxes,
+            deliveryCharges,
+            tenantId,
+            paymentMode,
+            paymentStatus: PaymentStatus.PENDING, // default to pending
+            orderStatus: OrderStatus.RECEIVED, // default to received
+          },
+        ], { session });
+        
+        await idempotencyModel.create(
+          [{ key: idempotencyKey, response: newOrder[0] }],
+          { session }
+        );
+
+        await session.commitTransaction();
+      } catch (err) {
+        await session.abortTransaction();
+        await session.endSession();
+        console.log("Error occurred: ", err);
+        throw createHttpError(500, "Failed to create order",err);
+      } finally {
+        await session.endSession();
+      }
+    }
+    
+    
+
+    res.json({_id: newOrder[0].customerId});
   };
 
   private calculateTotalCartPrice = async (cart: CartItems[]) => {
