@@ -4,9 +4,11 @@ import { asyncWrapper } from "../utils";
 import { Order } from "./orderController";
 import { orderValidator } from "./orderValidator";
 import { handleValidationErrors } from "../common/middleware/validate-schema";
+import { StripeGateway } from "../payment/stripe";
 
 const router = Router();
-const OrderController = new Order();
+const paymentGateway = new StripeGateway();
+const OrderController = new Order(paymentGateway);
 
 router.post(
     "/",

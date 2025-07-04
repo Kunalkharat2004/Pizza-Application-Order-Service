@@ -91,6 +91,7 @@ export enum PaymentStatus {
 }
 
 export interface Order {
+  _id?: mongoose.Types.ObjectId;
   cart: CartItems[];
   customerId: mongoose.Types.ObjectId;
   total: number;

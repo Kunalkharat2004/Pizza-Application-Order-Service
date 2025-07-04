@@ -5,12 +5,16 @@ import { ProductPricingCache } from "../productCache/productCacheTypes";
 import { ToppingCache } from "../toppingCache/toppingCacheTypes";
 import createHttpError from "http-errors";
 import couponModel from "../coupon/couponModel";
-import { CartItems, OrderStatus, PaymentStatus } from "./orderTypes";
+import { CartItems, OrderStatus, PaymentMode, PaymentStatus } from "./orderTypes";
 import orderModel from "./orderModel";
 import idempotencyModel from "../idempotency/idempotencyModel";
 import mongoose from "mongoose";
+import { PaymentGW } from "../payment/paymentTypes";
 
 export class Order {
+  
+  constructor(private paymentGateway: PaymentGW){}
+  
   create = async (req: Request, res: Response) => {
     const totalPrice = await this.calculateTotalCartPrice(req.body.cart);
 
@@ -70,9 +74,23 @@ export class Order {
       }
     }
     
-    
+    // Payment processing
+    if (paymentMode === PaymentMode.CARD) {
+      const session = await this.paymentGateway.createSession({
+        amount: finalAmount,
+        orderId: newOrder[0]._id.toString(),
+        tenantId: newOrder[0].tenantId,
+        idempotencyKey: idempotencyKey as string,
+      });
 
-    res.json({_id: newOrder[0].customerId});
+      res.json({
+        paymentUrl: session.paymentUrl,
+      })
+    }
+
+    res.json({
+      paymentUrl: null,
+    })
   };
 
   private calculateTotalCartPrice = async (cart: CartItems[]) => {
