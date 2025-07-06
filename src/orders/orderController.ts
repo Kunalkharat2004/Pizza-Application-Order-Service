@@ -5,15 +5,20 @@ import { ProductPricingCache } from "../productCache/productCacheTypes";
 import { ToppingCache } from "../toppingCache/toppingCacheTypes";
 import createHttpError from "http-errors";
 import couponModel from "../coupon/couponModel";
-import { CartItems, OrderStatus, PaymentMode, PaymentStatus } from "./orderTypes";
+import { CartItems, OrderEvents, OrderStatus, PaymentMode, PaymentStatus } from "./orderTypes";
 import orderModel from "./orderModel";
 import idempotencyModel from "../idempotency/idempotencyModel";
 import mongoose from "mongoose";
 import { PaymentGW } from "../payment/paymentTypes";
+import { MessageBroker } from "../types/broker";
+import config from "config";
+import { Logger } from "winston";
 
 export class Order {
   
-  constructor(private paymentGateway: PaymentGW){}
+  constructor(private paymentGateway: PaymentGW, private broker: MessageBroker,
+    private logger: Logger
+  ){}
   
   create = async (req: Request, res: Response) => {
     const totalPrice = await this.calculateTotalCartPrice(req.body.cart);
@@ -73,7 +78,12 @@ export class Order {
         await session.endSession();
       }
     }
-    
+
+     const brokerMessage = {
+        event_type: OrderEvents.ORDER_CREATED,
+        data: {...newOrder[0], customerId}
+      }
+
     // Payment processing
     if (paymentMode === PaymentMode.CARD) {
       const session = await this.paymentGateway.createSession({
@@ -83,12 +93,24 @@ export class Order {
         idempotencyKey: idempotencyKey as string,
       });
 
-      res.json({
+      await this.broker.sendMessage(
+        "order",
+        JSON.stringify(brokerMessage),
+      );
+      this.logger.info("Order created and message sent to broker", { orderId: newOrder[0]._id.toString(), customerId });
+
+      return res.json({
         paymentUrl: session.paymentUrl,
       })
     }
 
-    res.json({
+     await this.broker.sendMessage(
+        "order",
+        JSON.stringify(brokerMessage),
+      );
+      this.logger.info("Order created and message sent to broker", { orderId: newOrder[0]._id.toString(), customerId });
+
+    return res.json({
       paymentUrl: null,
     })
   };

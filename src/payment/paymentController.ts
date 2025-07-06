@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { PaymentGW } from "./paymentTypes";
 import orderModel from "../orders/orderModel";
-import { PaymentStatus } from "../orders/orderTypes";
+import { OrderEvents, PaymentStatus } from "../orders/orderTypes";
+import config  from "config";
+import { MessageBroker } from "../types/broker";
 
 export class PaymentController {
-  constructor(private paymentGateway: PaymentGW) {}
+  constructor(private paymentGateway: PaymentGW, private broker: MessageBroker) {}
 
   handleWebhook = async (req: Request, res: Response) => {
     const webhookBody = req.body;
@@ -13,8 +15,6 @@ export class PaymentController {
       const verifiedSession = await this.paymentGateway.getSession(
         webhookBody.data.object.id,
       );
-
-      console.log("Payment session verified:", verifiedSession);
 
       const isPaymentSuccessful = verifiedSession.paymentStatus === PaymentStatus.PAID;
 
@@ -30,8 +30,18 @@ export class PaymentController {
         { new: true }, // return the updated document
       );
 
-      // Send updated order to kafka broker
-      console.log("Updated order:", updatedOrder);
+      // Send message to broker
+      const brokerMessage = {
+        event_type: OrderEvents.PAYMENT_STATUS_UPDATE,
+        data: {
+          updatedOrder,
+        },
+      };
+
+      await this.broker.sendMessage(
+        "order",
+        JSON.stringify(brokerMessage),
+      );
     }
 
     return res.json({success:true});

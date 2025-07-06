@@ -5,10 +5,13 @@ import { Order } from "./orderController";
 import { orderValidator } from "./orderValidator";
 import { handleValidationErrors } from "../common/middleware/validate-schema";
 import createPaymentGateway from "../common/factories/paymentGwFactory";
+import { createMessageBroker } from "../common/factories/brokerFactory";
+import logger from "../config/logger";
 
 const router = Router();
 const paymentGateway = createPaymentGateway();
-const OrderController = new Order(paymentGateway);
+const broker = createMessageBroker();
+const OrderController = new Order(paymentGateway,broker,logger);
 
 router.post(
     "/",

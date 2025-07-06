@@ -13,6 +13,7 @@ const startServer = async () => {
   try {
     await connectDB();
     messageBroker = createMessageBroker();
+    await messageBroker.connectProducer();
     await messageBroker.connectConsumer();
     await messageBroker.consumeMessage(config.get("kafka.topics"), false);
     logger.info("Connected to broker");
