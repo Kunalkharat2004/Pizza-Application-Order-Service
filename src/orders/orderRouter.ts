@@ -4,10 +4,10 @@ import { asyncWrapper } from "../utils";
 import { Order } from "./orderController";
 import { orderValidator } from "./orderValidator";
 import { handleValidationErrors } from "../common/middleware/validate-schema";
-import { StripeGateway } from "../payment/stripe";
+import createPaymentGateway from "../common/factories/paymentGwFactory";
 
 const router = Router();
-const paymentGateway = new StripeGateway();
+const paymentGateway = createPaymentGateway();
 const OrderController = new Order(paymentGateway);
 
 router.post(
