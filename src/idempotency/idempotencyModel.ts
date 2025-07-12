@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
-import { Order } from "../orders/orderTypes";
+import { OrderType } from "../orders/orderTypes";
 
 interface Idempotency {
   key: string;
-  response: Order;
+  response: OrderType;
 }
 
 const idempotencySchema = new mongoose.Schema<Idempotency>(

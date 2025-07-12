@@ -5,13 +5,12 @@ import { ProductPricingCache } from "../productCache/productCacheTypes";
 import { ToppingCache } from "../toppingCache/toppingCacheTypes";
 import createHttpError from "http-errors";
 import couponModel from "../coupon/couponModel";
-import { CartItems, OrderEvents, OrderStatus, PaymentMode, PaymentStatus } from "./orderTypes";
+import { CartItems, OrderEvents, OrderStatus, OrderType, PaymentMode, PaymentStatus } from "./orderTypes";
 import orderModel from "./orderModel";
 import idempotencyModel from "../idempotency/idempotencyModel";
 import mongoose from "mongoose";
 import { PaymentGW } from "../payment/paymentTypes";
 import { MessageBroker } from "../types/broker";
-import config from "config";
 import { Logger } from "winston";
 
 export class Order {
@@ -21,10 +20,16 @@ export class Order {
   ){}
   
   create = async (req: Request, res: Response) => {
+    try{
     const totalPrice = await this.calculateTotalCartPrice(req.body.cart);
+    console.log("Total price:", totalPrice);
 
     const { cart,address, comment, customerId,paymentMode,couponCode, tenantId } = req.body;
-    const discountPercentage = await this.getDiscount(couponCode, tenantId);
+    let discountPercentage = 0;
+    if(couponCode){
+      discountPercentage = await this.getDiscount(couponCode, tenantId);
+      console.log("Discount percentage:", discountPercentage);
+    }
     const discountAmount = Math.round((totalPrice * discountPercentage) / 100);
 
       const totalPriceAfterDiscount = totalPrice - discountAmount;
@@ -37,15 +42,34 @@ export class Order {
 
     const idempotencyKey = req.headers["idempotency-key"];
     const idempotency = await idempotencyModel.findOne({ key: idempotencyKey });
+    console.log("Idempotency key:", idempotencyKey, "Exists:", !!idempotency);
 
-    let newOrder = idempotency ? [idempotency.response] : [];
+       let newOrder: OrderType[] = [];
+
+        if (idempotency) {
+        // If idempotency exists, use the stored response directly. It's already a plain object.
+        newOrder = [idempotency.response];
+      }
     
     if (!idempotency) {
       const session = await mongoose.startSession();
       await session.startTransaction();
 
+      console.log("data:",{
+        cart,
+        address,
+        comment,
+        customerId,
+        total: finalAmount,
+        discount: discountAmount,
+        taxes,
+        deliveryCharges,
+        tenantId,
+        paymentMode,
+      });
+
       try {
-        newOrder = await orderModel.create([
+        const createdOrdersDocs  = await orderModel.create([
           {
             cart,
             address,
@@ -62,14 +86,18 @@ export class Order {
           },
         ], { session });
         
-        
+        const createdOrderPlain = createdOrdersDocs[0].toObject();
+          newOrder = [createdOrderPlain]; // Assign the plain object to newOrder
+
+
         await idempotencyModel.create(
-          [{ key: idempotencyKey, response: newOrder[0] }],
+          [{ key: idempotencyKey, response: createdOrderPlain }],
           { session }
         );
         
         await session.commitTransaction();
       } catch (err) {
+        console.error("Transaction error:", err);
         await session.abortTransaction();
         await session.endSession();
         console.log("Error occurred: ", err);
@@ -113,6 +141,12 @@ export class Order {
     return res.json({
       paymentUrl: null,
     })
+  }catch(err){
+    console.error("⚠️ create(order) failed:", err);
+    return res
+      .status(err.status || 500)
+      .json({ errors: [{ msg: err.message, stack: err.stack }] });
+  }
   };
 
   private calculateTotalCartPrice = async (cart: CartItems[]) => {

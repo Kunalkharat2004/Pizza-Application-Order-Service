@@ -72,7 +72,7 @@ export interface CartItems
 }
 
 export enum PaymentMode {
-  CASH = "cash",
+  CASH = "cod",
   CARD = "card",
 }
 
@@ -90,7 +90,7 @@ export enum PaymentStatus {
   FAILED = "failed",
 }
 
-export interface Order {
+export interface OrderType {
   _id?: mongoose.Types.ObjectId;
   cart: CartItems[];
   customerId: mongoose.Types.ObjectId;

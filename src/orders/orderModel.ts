@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { CartItems, Order, OrderStatus, PaymentMode, PaymentStatus, Topping } from "./orderTypes";
+import { CartItems, OrderType, OrderStatus, PaymentMode, PaymentStatus, Topping } from "./orderTypes";
 import { addressSchema } from "../customer/customerModel";
 
 const toppingSchema = new mongoose.Schema<Topping>({
@@ -58,7 +58,7 @@ const cartSchema = new mongoose.Schema<CartItems>({
     }
 });
 
-const orderSchema = new mongoose.Schema<Order>({
+const orderSchema = new mongoose.Schema<OrderType>({
   cart: {
     type: [cartSchema],
     required: true,
@@ -116,4 +116,4 @@ const orderSchema = new mongoose.Schema<Order>({
     }
 });
 
-export default mongoose.model<Order>("Order", orderSchema);
+export default mongoose.model<OrderType>("Order", orderSchema);
