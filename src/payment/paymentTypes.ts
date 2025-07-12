@@ -20,9 +20,11 @@ export interface VerifiedSession {
   id: string;
   metadata: CustomMetadata;
   paymentStatus: GatewayPaymentStatus;
+  paymentIntentId?: string;
 }
 
 export interface PaymentGW {
   createSession: (options: PaymentOptions) => Promise<PaymentSession>;
   getSession: (id: string) => Promise<VerifiedSession>;
+  getReceiptUrl?(sessionId: string): Promise<string | null>;
 }

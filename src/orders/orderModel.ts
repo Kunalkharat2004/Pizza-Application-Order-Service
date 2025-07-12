@@ -102,7 +102,7 @@ const orderSchema = new mongoose.Schema<OrderType>({
     enum: PaymentMode,
   },
   paymentId: {
-    type: String,
+    type: String, 
     default: null,
   },
   paymentStatus: {
@@ -113,6 +113,10 @@ const orderSchema = new mongoose.Schema<OrderType>({
     taxes: {
         type: Number,
         default: 0,
+    },
+    receiptUrl:{
+        type: String,
+        default: null,
     }
 });
 

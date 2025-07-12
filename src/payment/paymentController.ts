@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { PaymentGW } from "./paymentTypes";
 import orderModel from "../orders/orderModel";
 import { OrderEvents, PaymentStatus } from "../orders/orderTypes";
-import config  from "config";
 import { MessageBroker } from "../types/broker";
 
 export class PaymentController {
@@ -17,6 +16,7 @@ export class PaymentController {
       );
 
       const isPaymentSuccessful = verifiedSession.paymentStatus === PaymentStatus.PAID;
+      console.log("Payment status:", isPaymentSuccessful);
 
       const updatedOrder = await orderModel.findOneAndUpdate(
         {

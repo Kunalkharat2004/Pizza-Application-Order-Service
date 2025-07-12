@@ -105,6 +105,7 @@ export interface OrderType {
   orderStatus: OrderStatus;
   paymentStatus: PaymentStatus;
   paymentId?: string;
+  receiptUrl?: string;
 }
 
 export enum OrderEvents {
