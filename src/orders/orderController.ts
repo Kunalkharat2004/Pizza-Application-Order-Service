@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import productCacheModel from "../productCache/productCacheModel";
 import toppingCacheModel from "../toppingCache/toppingCacheModel";
 import { ProductPricingCache } from "../productCache/productCacheTypes";
@@ -12,10 +12,15 @@ import mongoose from "mongoose";
 import { PaymentGW } from "../payment/paymentTypes";
 import { MessageBroker } from "../types/broker";
 import { Logger } from "winston";
+import { Request } from "express-jwt";
+import { OrderService } from "./orderService";
 
 export class Order {
   
-  constructor(private paymentGateway: PaymentGW, private broker: MessageBroker,
+  constructor(
+    private paymentGateway: PaymentGW,
+    private broker: MessageBroker,
+    private orderService: OrderService,
     private logger: Logger
   ){}
   
@@ -239,5 +244,28 @@ export class Order {
 
     // if no coupon or no discount field → 0
     return coupon?.discount ?? 0;
+  }
+
+  getOrdersByTenant = async(req: Request, res: Response) => {
+
+    try{
+      const {restaurantId} = req.params;
+      // const tenantId = new mongoose.Types.ObjectId(restaurantId);
+      const userId = req.auth?.sub;
+
+      // const filters: FilterData = {};
+      if (!restaurantId) {
+        throw createHttpError(400, "Restaurant ID is required");
+      }
+      const orders = await this.orderService.getOrdersByTenant({userId, restaurantId})
+      // console.log("Orders: ",orders);
+      res.json(orders);
+
+    }catch(err) {
+      console.error("⚠️ getOrdersByTenant failed:", err);
+      const error = createHttpError(500, "Failed to fetch orders", err);
+      throw error;
+    }
+
   }
 }

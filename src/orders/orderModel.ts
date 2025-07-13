@@ -118,6 +118,12 @@ const orderSchema = new mongoose.Schema<OrderType>({
         type: String,
         default: null,
     }
-});
+},
+{
+  timestamps: true,
+  versionKey: false,
+}
+
+);
 
 export default mongoose.model<OrderType>("Order", orderSchema);
