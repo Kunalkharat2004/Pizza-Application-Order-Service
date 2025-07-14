@@ -8,6 +8,8 @@ import createPaymentGateway from "../common/factories/paymentGwFactory";
 import { createMessageBroker } from "../common/factories/brokerFactory";
 import logger from "../config/logger";
 import { OrderService } from "./orderService";
+import canAccess from "../common/middleware/canAccess";
+import { ROLES } from "../common/constants";
 
 const router = Router();
 const paymentGateway = createPaymentGateway();
@@ -16,6 +18,14 @@ const orderService = new OrderService();
 const OrderController = new Order(paymentGateway,broker,orderService,logger);
 
 // GET all orders
+router.get(
+    "/",
+    authenticate,
+    canAccess([ROLES.ADMIN, ROLES.MANAGER]),
+    asyncWrapper(OrderController.getAllOrders)
+)
+
+// GET orders of customer
 router.get(
     "/mine",
     authenticate,
@@ -35,5 +45,7 @@ router.get(
     authenticate,
     asyncWrapper(OrderController.getSingleOrder)
 )
+
+
 
 export default router;

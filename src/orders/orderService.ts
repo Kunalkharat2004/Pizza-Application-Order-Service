@@ -1,9 +1,12 @@
 import orderModel from "./orderModel";
 import customerModel from "../customer/customerModel";
 import createHttpError from "http-errors";
+import { FilterData, OrderType } from "./orderTypes";
+import { IPaginateOptions } from "../types";
+import { AggregatePaginateResult } from "mongoose";
 
 export class OrderService {
-  getOrdersByTenant = async (userId: string) => {
+  getOrdersByUserId = async (userId: string) => {
     const customerId = (await customerModel.findOne({ userId: userId }))._id;
 
     const orders = await orderModel.find(
@@ -23,6 +26,51 @@ export class OrderService {
       return [];
     }
     return orders;
+  };
+
+  getOrder = async ({
+    filters,
+    paginateOptions,
+  }: {
+    filters: FilterData;
+    paginateOptions: IPaginateOptions;
+  }): Promise<AggregatePaginateResult<OrderType>> => {
+    const aggregate = orderModel.aggregate([
+      {
+        $match: filters,
+      },
+        {
+                $lookup: {
+                    from: "customers",
+                    localField: "customerId",
+                    foreignField: "_id",
+                    as: "customer",
+                    pipeline: [
+                        {
+                            $project: {
+                                _id: 1,
+                                firstName: 1,
+                                lastName: 1
+                            },
+                        },
+                    ],
+                },
+            },
+      {
+        $sort: {
+          createdAt: -1, // Sort by creation date in descending order
+        },
+      },
+    ]);
+
+    const result = orderModel.aggregatePaginate(
+      aggregate,
+      paginateOptions,
+    );
+      if (!result) {
+            throw new Error("No orders found");
+        }
+        return result;
   };
 
   // GET single order service

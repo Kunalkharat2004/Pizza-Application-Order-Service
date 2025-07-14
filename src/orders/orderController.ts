@@ -6,7 +6,7 @@ import { ProductPricingCache } from "../productCache/productCacheTypes";
 import { ToppingCache } from "../toppingCache/toppingCacheTypes";
 import createHttpError from "http-errors";
 import couponModel from "../coupon/couponModel";
-import { CartItems, OrderEvents, OrderStatus, OrderType, PaymentMode, PaymentStatus } from "./orderTypes";
+import { CartItems, FilterData, OrderEvents, OrderStatus, OrderType, PaymentMode, PaymentStatus } from "./orderTypes";
 import orderModel from "./orderModel";
 import idempotencyModel from "../idempotency/idempotencyModel";
 import mongoose from "mongoose";
@@ -15,6 +15,8 @@ import { MessageBroker } from "../types/broker";
 import { Logger } from "winston";
 
 import { OrderService } from "./orderService";
+import { ROLES } from "../common/constants";
+import { customPaginateLabels } from "../config/customPaginateLabels";
 
 export class Order {
   
@@ -252,7 +254,7 @@ export class Order {
     try{
       const userId = req.auth?.sub;
 
-      const orders = await this.orderService.getOrdersByTenant(userId)
+      const orders = await this.orderService.getOrdersByUserId(userId)
       res.json(orders);
 
     }catch(err) {
@@ -260,6 +262,47 @@ export class Order {
       const error = createHttpError(500, "Failed to fetch orders", err);
       throw error;
     }
+
+  }
+
+  getAllOrders = async(req: AuthRequest, res: Response) =>{
+   try{
+     const {tenantId,orderStatus,paymentMode,paymentStatus} = req.query;
+    const managerTenantId = req.auth?.tenantId;
+
+    const filters:FilterData = {};
+        if(tenantId || managerTenantId)filters.tenantId = tenantId as string || managerTenantId as string;
+        if(orderStatus)filters.orderStatus = orderStatus as string;
+        if(paymentMode) filters.paymentMode = paymentMode as string;
+        if(paymentStatus) filters.paymentStatus = paymentStatus as string;
+      
+        const paginateOptions = {
+            page: Number(req.query.page) || 1,
+            limit: Number(req.query.limit) || 10,
+            customLabels: customPaginateLabels,
+        };
+
+    // check if role is ADMIN
+    const isAdmin = req.auth?.role === ROLES.ADMIN;
+    if(isAdmin){
+      const order = await this.orderService.getOrder({filters,paginateOptions});
+      return res.json(order);
+    }
+
+    // check if role is MANAGER
+    const isManager = req.auth?.role === ROLES.MANAGER;
+    if(isManager){
+      const order = await this.orderService.getOrder({filters,paginateOptions})
+      return res.json(order);
+    }
+
+    // if role is customer
+    throw createHttpError(403,"You are not authorize to access these resource.");
+
+   }catch(err){
+    const error = createHttpError(500,"Failed to load orders");
+    throw error;
+   }
 
   }
 
@@ -277,20 +320,20 @@ export class Order {
     const order = await this.orderService.getSingleOrderById({orderId,projection});
 
     // check if the role is admin
-    const isAdmin = req.auth.role === "admin";
+    const isAdmin = req.auth.role === ROLES.ADMIN;
     if(isAdmin){
       return res.json(order);
     } 
 
     // check if the role is manager
-    const isManager = req.auth.role === "manager";
+    const isManager = req.auth.role === ROLES.MANAGER;
     const managerTenantId = req.auth?.tenantId
     if(isManager && managerTenantId === order.tenantId){
         return res.json(order);
     } 
 
     // check if the role is customer
-    const isCustomer = req.auth.role === "customer";
+    const isCustomer = req.auth.role === ROLES.CUSTOMER;
     if(isCustomer){
       const userId = req.auth?.sub;
       const customer = await this.orderService.getCustomerById(userId);

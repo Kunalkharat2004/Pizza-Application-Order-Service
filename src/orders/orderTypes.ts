@@ -113,3 +113,10 @@ export enum OrderEvents {
   ORDER_UPDATED = "order_updated",
   PAYMENT_STATUS_UPDATE = "payment_status_update",
 }
+
+export type FilterData = {
+  tenantId?: string;
+  orderStatus?: string;
+  paymentMode?: string;
+  paymentStatus?: string;
+}
