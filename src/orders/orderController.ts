@@ -1,4 +1,5 @@
-import { Response } from "express";
+import { Response,Request } from "express";
+import { Request as AuthRequest } from "express-jwt";
 import productCacheModel from "../productCache/productCacheModel";
 import toppingCacheModel from "../toppingCache/toppingCacheModel";
 import { ProductPricingCache } from "../productCache/productCacheTypes";
@@ -12,7 +13,7 @@ import mongoose from "mongoose";
 import { PaymentGW } from "../payment/paymentTypes";
 import { MessageBroker } from "../types/broker";
 import { Logger } from "winston";
-import { Request } from "express-jwt";
+
 import { OrderService } from "./orderService";
 
 export class Order {
@@ -246,19 +247,12 @@ export class Order {
     return coupon?.discount ?? 0;
   }
 
-  getOrdersByTenant = async(req: Request, res: Response) => {
+  getOrders = async(req: AuthRequest, res: Response) => {
 
     try{
-      const {restaurantId} = req.params;
-      // const tenantId = new mongoose.Types.ObjectId(restaurantId);
       const userId = req.auth?.sub;
 
-      // const filters: FilterData = {};
-      if (!restaurantId) {
-        throw createHttpError(400, "Restaurant ID is required");
-      }
-      const orders = await this.orderService.getOrdersByTenant({userId, restaurantId})
-      // console.log("Orders: ",orders);
+      const orders = await this.orderService.getOrdersByTenant(userId)
       res.json(orders);
 
     }catch(err) {
@@ -268,4 +262,50 @@ export class Order {
     }
 
   }
+
+  getSingleOrder = async(req: AuthRequest, res: Response)=>{
+
+    try{
+    const {orderId} = req.params;
+    const fields = req.query.fields ? req.query.fields.toString().split(","):[];
+
+    const projection = fields.reduce((acc,field)=>{
+      acc[field] = 1;
+      return acc;
+    },{customerId: 1})
+
+    const order = await this.orderService.getSingleOrderById({orderId,projection});
+
+    // check if the role is admin
+    const isAdmin = req.auth.role === "admin";
+    if(isAdmin){
+      return res.json(order);
+    } 
+
+    // check if the role is manager
+    const isManager = req.auth.role === "manager";
+    const managerTenantId = req.auth?.tenantId
+    if(isManager && managerTenantId === order.tenantId){
+        return res.json(order);
+    } 
+
+    // check if the role is customer
+    const isCustomer = req.auth.role === "customer";
+    if(isCustomer){
+      const userId = req.auth?.sub;
+      const customer = await this.orderService.getCustomerById(userId);
+      if(customer._id.toString() === order.customerId._id.toString()){
+          return res.json(order);
+      }
+    }
+
+    
+    const error = createHttpError(403,"You are not authorize to access this resource.");
+    throw error;
+    }catch(err){
+      const error = createHttpError(500, "Failed to fetch single order");
+      throw error;
+    }
+  }
+
 }

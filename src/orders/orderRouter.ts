@@ -15,10 +15,11 @@ const broker = createMessageBroker();
 const orderService = new OrderService();
 const OrderController = new Order(paymentGateway,broker,orderService,logger);
 
+// GET all orders
 router.get(
-    "/:restaurantId",
+    "/mine",
     authenticate,
-    asyncWrapper(OrderController.getOrdersByTenant)
+    asyncWrapper(OrderController.getOrders)
 )
 
 router.post(
@@ -28,5 +29,11 @@ router.post(
     handleValidationErrors,
     asyncWrapper(OrderController.create)
 );
+
+router.get(
+    "/:orderId",
+    authenticate,
+    asyncWrapper(OrderController.getSingleOrder)
+)
 
 export default router;
