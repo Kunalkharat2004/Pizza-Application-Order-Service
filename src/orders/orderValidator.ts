@@ -1,5 +1,6 @@
 // orderValidator.ts
 import { checkSchema } from "express-validator";
+import { OrderStatus } from "./orderTypes";
 
 export const orderValidator = checkSchema({
   // --- Cart array ---
@@ -215,3 +216,21 @@ export const orderValidator = checkSchema({
     toBoolean: true,
   },
 });
+
+export const orderStatusValidator = checkSchema({
+  status:{
+    in:["body"],
+    notEmpty:{
+      errorMessage: "Status is required!"
+    },
+    custom:{
+      options: (status)=> {
+        const validStatuses = Object.values(OrderStatus);
+        if (!validStatuses.includes(status)) {
+          throw new Error("Invalid status value!");
+        }
+        return true;
+      }
+    }
+  }
+})

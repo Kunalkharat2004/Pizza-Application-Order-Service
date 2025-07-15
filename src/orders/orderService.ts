@@ -6,26 +6,39 @@ import { IPaginateOptions } from "../types";
 import { AggregatePaginateResult } from "mongoose";
 
 export class OrderService {
-  getOrdersByUserId = async (userId: string) => {
+  getOrdersByUserId = async ({
+    userId,
+    paginateOptions,
+  }: {
+    userId: string;
+    paginateOptions: IPaginateOptions;
+  }): Promise<AggregatePaginateResult<OrderType>> => {
     const customerId = (await customerModel.findOne({ userId: userId }))._id;
 
-    const orders = await orderModel.find(
+    const aggregate = orderModel.aggregate([
       {
-        customerId: customerId,
+        $match: { customerId },
       },
       {
-        cart: 0,
-        address: 0,
-        updatedAt: 0,
+        $project: {
+          cart: 0,
+          address: 0,
+          updatedAt: 0,
+        },
       },
-    );
-    // console.log("Order received: ",orders);
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+    ]);
 
-    if (!orders) {
-      // throw new Error("No orders found for this tenant");
-      return [];
+    const result = orderModel.aggregatePaginate(aggregate, paginateOptions);
+    console.log("Order aggregate: ", result);
+    if (!result) {
+      throw new Error("No orders found");
     }
-    return orders;
+    return result;
   };
 
   getOrder = async ({
@@ -39,23 +52,23 @@ export class OrderService {
       {
         $match: filters,
       },
-        {
-                $lookup: {
-                    from: "customers",
-                    localField: "customerId",
-                    foreignField: "_id",
-                    as: "customer",
-                    pipeline: [
-                        {
-                            $project: {
-                                _id: 1,
-                                firstName: 1,
-                                lastName: 1
-                            },
-                        },
-                    ],
-                },
+      {
+        $lookup: {
+          from: "customers",
+          localField: "customerId",
+          foreignField: "_id",
+          as: "customer",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                firstName: 1,
+                lastName: 1,
+              },
             },
+          ],
+        },
+      },
       {
         $sort: {
           createdAt: -1, // Sort by creation date in descending order
@@ -63,14 +76,11 @@ export class OrderService {
       },
     ]);
 
-    const result = orderModel.aggregatePaginate(
-      aggregate,
-      paginateOptions,
-    );
-      if (!result) {
-            throw new Error("No orders found");
-        }
-        return result;
+    const result = orderModel.aggregatePaginate(aggregate, paginateOptions);
+    if (!result) {
+      throw new Error("No orders found");
+    }
+    return result;
   };
 
   // GET single order service
@@ -125,6 +135,30 @@ export class OrderService {
         "Something went wrong while fetching customer!",
       );
       throw error;
+    }
+  };
+
+  updateOrderStatus = async ({
+    orderId,
+    status,
+  }: {
+    orderId: string;
+    status: string;
+  }) => {
+    try {
+      const updatedOrder = orderModel.findOneAndUpdate(
+        { _id: orderId },
+        { orderStatus: status },
+        { new: true },
+      );
+
+      if(!updatedOrder){
+      throw createHttpError("500", "Error updating order status!");
+      }
+
+      return updatedOrder;
+    } catch (err) {
+      throw createHttpError("500", "Error updating order status!");
     }
   };
 }

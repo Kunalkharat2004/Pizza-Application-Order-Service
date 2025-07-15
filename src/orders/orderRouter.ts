@@ -2,7 +2,7 @@ import { Router } from "express";
 import authenticate from "../common/middleware/authenticate";
 import { asyncWrapper } from "../utils";
 import { Order } from "./orderController";
-import { orderValidator } from "./orderValidator";
+import { orderStatusValidator, orderValidator } from "./orderValidator";
 import { handleValidationErrors } from "../common/middleware/validate-schema";
 import createPaymentGateway from "../common/factories/paymentGwFactory";
 import { createMessageBroker } from "../common/factories/brokerFactory";
@@ -44,6 +44,15 @@ router.get(
     "/:orderId",
     authenticate,
     asyncWrapper(OrderController.getSingleOrder)
+)
+
+// PATCH to update order status
+router.patch(
+    "/change-status/:orderId",
+    authenticate,
+    orderStatusValidator,
+    handleValidationErrors,
+    asyncWrapper(OrderController.updateOrderStatus)
 )
 
 

@@ -1,4 +1,4 @@
-import { Response,Request } from "express";
+import { Response, Request, NextFunction } from "express";
 import { Request as AuthRequest } from "express-jwt";
 import productCacheModel from "../productCache/productCacheModel";
 import toppingCacheModel from "../toppingCache/toppingCacheModel";
@@ -6,7 +6,15 @@ import { ProductPricingCache } from "../productCache/productCacheTypes";
 import { ToppingCache } from "../toppingCache/toppingCacheTypes";
 import createHttpError from "http-errors";
 import couponModel from "../coupon/couponModel";
-import { CartItems, FilterData, OrderEvents, OrderStatus, OrderType, PaymentMode, PaymentStatus } from "./orderTypes";
+import {
+  CartItems,
+  FilterData,
+  OrderEvents,
+  OrderStatus,
+  OrderType,
+  PaymentMode,
+  PaymentStatus,
+} from "./orderTypes";
 import orderModel from "./orderModel";
 import idempotencyModel from "../idempotency/idempotencyModel";
 import mongoose from "mongoose";
@@ -19,142 +27,157 @@ import { ROLES } from "../common/constants";
 import { customPaginateLabels } from "../config/customPaginateLabels";
 
 export class Order {
-  
   constructor(
     private paymentGateway: PaymentGW,
     private broker: MessageBroker,
     private orderService: OrderService,
-    private logger: Logger
-  ){}
-  
+    private logger: Logger,
+  ) {}
+
   create = async (req: Request, res: Response) => {
-    try{
-    const totalPrice = await this.calculateTotalCartPrice(req.body.cart);
-    console.log("Total price:", totalPrice);
+    try {
+      const totalPrice = await this.calculateTotalCartPrice(req.body.cart);
+      console.log("Total price:", totalPrice);
 
-    const { cart,address, comment, customerId,paymentMode,couponCode, tenantId } = req.body;
-    let discountPercentage = 0;
-    if(couponCode){
-      discountPercentage = await this.getDiscount(couponCode, tenantId);
-      console.log("Discount percentage:", discountPercentage);
-    }
-    const discountAmount = Math.round((totalPrice * discountPercentage) / 100);
-
-      const totalPriceAfterDiscount = totalPrice - discountAmount;
-      const TAX_PERCENTAGE = 18;
-      const taxes = Math.round((totalPriceAfterDiscount * TAX_PERCENTAGE) / 100);
-
-      const deliveryCharges = totalPrice >= 500 ? 0 : 20; // HARDCODED DELIVERY CHARGE
-
-    const finalAmount = totalPriceAfterDiscount + taxes + deliveryCharges;
-
-    const idempotencyKey = req.headers["idempotency-key"];
-    const idempotency = await idempotencyModel.findOne({ key: idempotencyKey });
-    console.log("Idempotency key:", idempotencyKey, "Exists:", !!idempotency);
-
-       let newOrder: OrderType[] = [];
-
-        if (idempotency) {
-        // If idempotency exists, use the stored response directly. It's already a plain object.
-        newOrder = [idempotency.response];
-      }
-    
-    if (!idempotency) {
-      const session = await mongoose.startSession();
-      await session.startTransaction();
-
-      console.log("data:",{
+      const {
         cart,
         address,
         comment,
         customerId,
-        total: finalAmount,
-        discount: discountAmount,
-        taxes,
-        deliveryCharges,
-        tenantId,
         paymentMode,
-      });
+        couponCode,
+        tenantId,
+      } = req.body;
+      let discountPercentage = 0;
+      if (couponCode) {
+        discountPercentage = await this.getDiscount(couponCode, tenantId);
+        console.log("Discount percentage:", discountPercentage);
+      }
+      const discountAmount = Math.round(
+        (totalPrice * discountPercentage) / 100,
+      );
 
-      try {
-        const createdOrdersDocs  = await orderModel.create([
-          {
-            cart,
-            address,
-            comment,
-            customerId,
-            total: finalAmount,
-            discount: discountAmount,
-            taxes,
-            deliveryCharges,
-            tenantId,
-            paymentMode,
-            paymentStatus: PaymentStatus.PENDING, // default to pending
-            orderStatus: OrderStatus.RECEIVED, // default to received
-          },
-        ], { session });
-        
-        const createdOrderPlain = createdOrdersDocs[0].toObject();
+      const totalPriceAfterDiscount = totalPrice - discountAmount;
+      const TAX_PERCENTAGE = 18;
+      const taxes = Math.round(
+        (totalPriceAfterDiscount * TAX_PERCENTAGE) / 100,
+      );
+
+      const deliveryCharges = totalPrice >= 500 ? 0 : 20; // HARDCODED DELIVERY CHARGE
+
+      const finalAmount = totalPriceAfterDiscount + taxes + deliveryCharges;
+
+      const idempotencyKey = req.headers["idempotency-key"];
+      const idempotency = await idempotencyModel.findOne({
+        key: idempotencyKey,
+      });
+      console.log("Idempotency key:", idempotencyKey, "Exists:", !!idempotency);
+
+      let newOrder: OrderType[] = [];
+
+      if (idempotency) {
+        // If idempotency exists, use the stored response directly. It's already a plain object.
+        newOrder = [idempotency.response];
+      }
+
+      if (!idempotency) {
+        const session = await mongoose.startSession();
+        await session.startTransaction();
+
+        console.log("data:", {
+          cart,
+          address,
+          comment,
+          customerId,
+          total: finalAmount,
+          discount: discountAmount,
+          taxes,
+          deliveryCharges,
+          tenantId,
+          paymentMode,
+        });
+
+        try {
+          const createdOrdersDocs = await orderModel.create(
+            [
+              {
+                cart,
+                address,
+                comment,
+                customerId,
+                total: finalAmount,
+                discount: discountAmount,
+                taxes,
+                deliveryCharges,
+                tenantId,
+                paymentMode,
+                paymentStatus: PaymentStatus.PENDING, // default to pending
+                orderStatus: OrderStatus.RECEIVED, // default to received
+              },
+            ],
+            { session },
+          );
+
+          const createdOrderPlain = createdOrdersDocs[0].toObject();
           newOrder = [createdOrderPlain]; // Assign the plain object to newOrder
 
+          await idempotencyModel.create(
+            [{ key: idempotencyKey, response: createdOrderPlain }],
+            { session },
+          );
 
-        await idempotencyModel.create(
-          [{ key: idempotencyKey, response: createdOrderPlain }],
-          { session }
-        );
-        
-        await session.commitTransaction();
-      } catch (err) {
-        console.error("Transaction error:", err);
-        await session.abortTransaction();
-        await session.endSession();
-        console.log("Error occurred: ", err);
-        throw createHttpError(500, "Failed to create order",err);
-      } finally {
-        await session.endSession();
+          await session.commitTransaction();
+        } catch (err) {
+          console.error("Transaction error:", err);
+          await session.abortTransaction();
+          await session.endSession();
+          console.log("Error occurred: ", err);
+          throw createHttpError(500, "Failed to create order", err);
+        } finally {
+          await session.endSession();
+        }
       }
-    }
 
-     const brokerMessage = {
+      const brokerMessage = {
         event_type: OrderEvents.ORDER_CREATED,
-        data: {...newOrder[0], customerId}
+        data: { ...newOrder[0], customerId },
+      };
+
+      // Payment processing
+      if (paymentMode === PaymentMode.CARD) {
+        const session = await this.paymentGateway.createSession({
+          amount: finalAmount,
+          orderId: newOrder[0]._id.toString(),
+          tenantId: newOrder[0].tenantId,
+          idempotencyKey: idempotencyKey as string,
+        });
+
+        await this.broker.sendMessage("order", JSON.stringify(brokerMessage));
+        this.logger.info("Order created and message sent to broker", {
+          orderId: newOrder[0]._id.toString(),
+          customerId,
+        });
+
+        return res.json({
+          paymentUrl: session.paymentUrl,
+        });
       }
 
-    // Payment processing
-    if (paymentMode === PaymentMode.CARD) {
-      const session = await this.paymentGateway.createSession({
-        amount: finalAmount,
+      await this.broker.sendMessage("order", JSON.stringify(brokerMessage));
+      this.logger.info("Order created and message sent to broker", {
         orderId: newOrder[0]._id.toString(),
-        tenantId: newOrder[0].tenantId,
-        idempotencyKey: idempotencyKey as string,
+        customerId,
       });
 
-      await this.broker.sendMessage(
-        "order",
-        JSON.stringify(brokerMessage),
-      );
-      this.logger.info("Order created and message sent to broker", { orderId: newOrder[0]._id.toString(), customerId });
-
       return res.json({
-        paymentUrl: session.paymentUrl,
-      })
+        paymentUrl: null,
+      });
+    } catch (err) {
+      console.error("⚠️ create(order) failed:", err);
+      return res
+        .status(err.status || 500)
+        .json({ errors: [{ msg: err.message, stack: err.stack }] });
     }
-
-     await this.broker.sendMessage(
-        "order",
-        JSON.stringify(brokerMessage),
-      );
-      this.logger.info("Order created and message sent to broker", { orderId: newOrder[0]._id.toString(), customerId });
-
-    return res.json({
-      paymentUrl: null,
-    })
-  }catch(err){
-    console.error("⚠️ create(order) failed:", err);
-    return res
-      .status(err.status || 500)
-      .json({ errors: [{ msg: err.message, stack: err.stack }] });
-  }
   };
 
   private calculateTotalCartPrice = async (cart: CartItems[]) => {
@@ -249,106 +272,174 @@ export class Order {
     return coupon?.discount ?? 0;
   }
 
-  getOrders = async(req: AuthRequest, res: Response) => {
-
-    try{
+  getOrders = async (req: AuthRequest, res: Response) => {
+    try {
       const userId = req.auth?.sub;
+      const paginateOptions = {
+        page: Number(req.query.page) || 1,
+        limit: Number(req.query.limit) || 10,
+        customLabels: customPaginateLabels,
+      };
 
-      const orders = await this.orderService.getOrdersByUserId(userId)
-      res.json(orders);
-
-    }catch(err) {
+      const orders = await this.orderService.getOrdersByUserId({
+        userId,
+        paginateOptions,
+      });
+      return res.json(orders);
+    } catch (err) {
       console.error("⚠️ getOrdersByTenant failed:", err);
       const error = createHttpError(500, "Failed to fetch orders", err);
       throw error;
     }
+  };
 
-  }
+  getAllOrders = async (req: AuthRequest, res: Response) => {
+    try {
+      const { tenantId, orderStatus, paymentMode, paymentStatus } = req.query;
+      const managerTenantId = req.auth?.tenantId;
 
-  getAllOrders = async(req: AuthRequest, res: Response) =>{
-   try{
-     const {tenantId,orderStatus,paymentMode,paymentStatus} = req.query;
-    const managerTenantId = req.auth?.tenantId;
+      const filters: FilterData = {};
+      if (tenantId || managerTenantId)
+        filters.tenantId = (tenantId as string) || (managerTenantId as string);
+      if (orderStatus) filters.orderStatus = orderStatus as string;
+      if (paymentMode) filters.paymentMode = paymentMode as string;
+      if (paymentStatus) filters.paymentStatus = paymentStatus as string;
 
-    const filters:FilterData = {};
-        if(tenantId || managerTenantId)filters.tenantId = tenantId as string || managerTenantId as string;
-        if(orderStatus)filters.orderStatus = orderStatus as string;
-        if(paymentMode) filters.paymentMode = paymentMode as string;
-        if(paymentStatus) filters.paymentStatus = paymentStatus as string;
-      
-        const paginateOptions = {
-            page: Number(req.query.page) || 1,
-            limit: Number(req.query.limit) || 10,
-            customLabels: customPaginateLabels,
-        };
+      const paginateOptions = {
+        page: Number(req.query.page) || 1,
+        limit: Number(req.query.limit) || 10,
+        customLabels: customPaginateLabels,
+      };
 
-    // check if role is ADMIN
-    const isAdmin = req.auth?.role === ROLES.ADMIN;
-    if(isAdmin){
-      const order = await this.orderService.getOrder({filters,paginateOptions});
-      return res.json(order);
-    }
-
-    // check if role is MANAGER
-    const isManager = req.auth?.role === ROLES.MANAGER;
-    if(isManager){
-      const order = await this.orderService.getOrder({filters,paginateOptions})
-      return res.json(order);
-    }
-
-    // if role is customer
-    throw createHttpError(403,"You are not authorize to access these resource.");
-
-   }catch(err){
-    const error = createHttpError(500,"Failed to load orders");
-    throw error;
-   }
-
-  }
-
-  getSingleOrder = async(req: AuthRequest, res: Response)=>{
-
-    try{
-    const {orderId} = req.params;
-    const fields = req.query.fields ? req.query.fields.toString().split(","):[];
-
-    const projection = fields.reduce((acc,field)=>{
-      acc[field] = 1;
-      return acc;
-    },{customerId: 1})
-
-    const order = await this.orderService.getSingleOrderById({orderId,projection});
-
-    // check if the role is admin
-    const isAdmin = req.auth.role === ROLES.ADMIN;
-    if(isAdmin){
-      return res.json(order);
-    } 
-
-    // check if the role is manager
-    const isManager = req.auth.role === ROLES.MANAGER;
-    const managerTenantId = req.auth?.tenantId
-    if(isManager && managerTenantId === order.tenantId){
+      // check if role is ADMIN
+      const isAdmin = req.auth?.role === ROLES.ADMIN;
+      if (isAdmin) {
+        const order = await this.orderService.getOrder({
+          filters,
+          paginateOptions,
+        });
         return res.json(order);
-    } 
-
-    // check if the role is customer
-    const isCustomer = req.auth.role === ROLES.CUSTOMER;
-    if(isCustomer){
-      const userId = req.auth?.sub;
-      const customer = await this.orderService.getCustomerById(userId);
-      if(customer._id.toString() === order.customerId._id.toString()){
-          return res.json(order);
       }
-    }
 
-    
-    const error = createHttpError(403,"You are not authorize to access this resource.");
-    throw error;
-    }catch(err){
+      // check if role is MANAGER
+      const isManager = req.auth?.role === ROLES.MANAGER;
+      if (isManager) {
+        const order = await this.orderService.getOrder({
+          filters,
+          paginateOptions,
+        });
+        return res.json(order);
+      }
+
+      // if role is customer
+      throw createHttpError(
+        403,
+        "You are not authorize to access these resource.",
+      );
+    } catch (err) {
+      const error = createHttpError(500, "Failed to load orders");
+      throw error;
+    }
+  };
+
+  getSingleOrder = async (req: AuthRequest, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const fields = req.query.fields
+        ? req.query.fields.toString().split(",")
+        : [];
+
+      const projection = fields.reduce(
+        (acc, field) => {
+          acc[field] = 1;
+          return acc;
+        },
+        { customerId: 1 },
+      );
+
+      const order = await this.orderService.getSingleOrderById({
+        orderId,
+        projection,
+      });
+
+      // check if the role is admin
+      const isAdmin = req.auth.role === ROLES.ADMIN;
+      if (isAdmin) {
+        return res.json(order);
+      }
+
+      // check if the role is manager
+      const isManager = req.auth.role === ROLES.MANAGER;
+      const managerTenantId = req.auth?.tenantId;
+      if (isManager && managerTenantId === order.tenantId) {
+        return res.json(order);
+      }
+
+      // check if the role is customer
+      const isCustomer = req.auth.role === ROLES.CUSTOMER;
+      if (isCustomer) {
+        const userId = req.auth?.sub;
+        const customer = await this.orderService.getCustomerById(userId);
+        if (customer._id.toString() === order.customerId._id.toString()) {
+          return res.json(order);
+        }
+      }
+
+      const error = createHttpError(
+        403,
+        "You are not authorize to access this resource.",
+      );
+      throw error;
+    } catch (err) {
       const error = createHttpError(500, "Failed to fetch single order");
       throw error;
     }
-  }
+  };
 
+  updateOrderStatus = async (req: AuthRequest, res: Response, next:NextFunction) => {
+    try {
+      const { orderId } = req.params;
+      const { role, tenantId } = req.auth;
+      const { status } = req.body;
+
+      const fields = req.query.fields
+        ? req.query.fields.toString().split(",")
+        : [];
+
+      const projection = fields.reduce(
+        (acc, field) => {
+          acc[field] = 1;
+          return acc;
+        },
+        { customerId: 1 },
+      );
+
+      if (role === ROLES.ADMIN || role === ROLES.MANAGER) {
+        const order = await this.orderService.getSingleOrderById({
+          orderId,
+          projection,
+        });
+
+        // for manager check if allowed to modify
+        if (role === ROLES.MANAGER) {
+          const isMyRestaurant = tenantId === order.tenantId;
+          if (!isMyRestaurant) {
+             return next(createHttpError(403, "Not allowed."))
+          }
+        }
+
+        const updatedOrder = await this.orderService.updateOrderStatus({
+          orderId,
+          status,
+        });
+
+        return res.json({_id: updatedOrder._id});
+      }
+
+      return next(createHttpError(403, "Not allowed."))
+
+    } catch (err) {
+      throw createHttpError(500, "Failed to update status!");
+    }
+  };
 }
