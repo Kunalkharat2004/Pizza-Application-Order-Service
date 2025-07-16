@@ -16,3 +16,6 @@ export interface Customer {
   createdAt: Date;
   updatedAt: Date;
 }
+export enum CustomerEvents {
+  CUSTOMER_UPDATED = "CUSTOMER_UPDATE",
+}

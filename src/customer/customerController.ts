@@ -3,11 +3,14 @@ import { Request } from "express-jwt";
 import { Logger } from "winston";
 import { CustomerService } from "./customerService";
 import createHttpError from "http-errors";
+import { CustomerEvents } from "./customerTypes";
+import { MessageBroker } from "../types/broker";
 
 
 export class Customer {
   constructor(
     private readonly customerService: CustomerService,
+    private broker: MessageBroker,
     private readonly logger: Logger,
   ) {}
 
@@ -50,6 +53,14 @@ export class Customer {
       throw createHttpError(500, "Failed to update address");
     }
 
+    const brokerMessage = {
+        event_type: CustomerEvents.CUSTOMER_UPDATED,
+        data: {updatedCustomer},
+      };
+        await this.broker.sendMessage("customer", JSON.stringify(brokerMessage),updatedCustomer._id.toString());
+      this.logger.info("Customer address updated and message sent to broker", {
+        customerId: updatedCustomer._id.toString(),
+      });
     this.logger.info("Address updated successfully", updatedCustomer._id);
     res.status(200).json(updatedCustomer);
   }

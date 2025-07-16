@@ -109,9 +109,9 @@ export interface OrderType {
 }
 
 export enum OrderEvents {
-  ORDER_CREATED = "order_created",
-  ORDER_UPDATED = "order_updated",
-  PAYMENT_STATUS_UPDATE = "payment_status_update",
+  ORDER_CREATED = "ORDER_CREATED",
+  ORDER_UPDATED = "ORDER_UPDATED",
+  PAYMENT_STATUS_UPDATE = "PAYMENT_STATUS_UPDATE",
 }
 
 export type FilterData = {

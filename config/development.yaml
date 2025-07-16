@@ -4,9 +4,14 @@ server:
 auth:
   jwksUri: http://localhost:3200/.well-known/jwks.json
 database:
-  url: mongodb://localhost:27017/order-db?w=1
-
+  url: mongodb+srv://kunalkharat2004:TyZQJNDG4rZkw8YH@cluster0.eulpqje.mongodb.net/order?retryWrites=true&w=majority&appName=Cluster0
 kafka:
   clientId: order-service
   brokers: [localhost:9092]
-  topics: ["product","topping"]
+  topics: ["product","topping","order"]
+stripe:
+  secretKey: sk_test_51RhEhWPEtntLoVrYehnYrg9WTctmu0VOJMdqruAENqczsjMsEfXImGQD1oapuY6tOU9XX9zGcANCLkdp3R1oEqC300wAN4vocu
+  imageUrl: https://via.placeholder.com/150
+frontend:
+  clientUI: http://localhost:3000
+

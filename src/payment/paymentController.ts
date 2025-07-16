@@ -41,6 +41,7 @@ export class PaymentController {
       await this.broker.sendMessage(
         "order",
         JSON.stringify(brokerMessage),
+        updatedOrder._id.toString()
       );
     }
 

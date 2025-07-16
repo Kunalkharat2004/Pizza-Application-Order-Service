@@ -152,7 +152,7 @@ export class Order {
           idempotencyKey: idempotencyKey as string,
         });
 
-        await this.broker.sendMessage("order", JSON.stringify(brokerMessage));
+        await this.broker.sendMessage("order", JSON.stringify(brokerMessage),newOrder[0]._id.toString());
         this.logger.info("Order created and message sent to broker", {
           orderId: newOrder[0]._id.toString(),
           customerId,
@@ -163,7 +163,7 @@ export class Order {
         });
       }
 
-      await this.broker.sendMessage("order", JSON.stringify(brokerMessage));
+      await this.broker.sendMessage("order", JSON.stringify(brokerMessage),newOrder[0]._id.toString());
       this.logger.info("Order created and message sent to broker", {
         orderId: newOrder[0]._id.toString(),
         customerId,
@@ -432,6 +432,16 @@ export class Order {
           orderId,
           status,
         });
+
+        // publish message to kafka
+        const brokerMessage = {
+        event_type: OrderEvents.ORDER_UPDATED,
+        data: { updatedOrder },
+      };
+
+        await this.broker.sendMessage("order", JSON.stringify(brokerMessage),updatedOrder._id.toString());
+      this.logger.info("Order created and message sent to broker", {
+        orderId: updatedOrder._id.toString()});
 
         return res.json({_id: updatedOrder._id});
       }
