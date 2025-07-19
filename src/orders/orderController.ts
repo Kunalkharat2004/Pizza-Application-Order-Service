@@ -25,6 +25,7 @@ import { Logger } from "winston";
 import { OrderService } from "./orderService";
 import { ROLES } from "../common/constants";
 import { customPaginateLabels } from "../config/customPaginateLabels";
+import customerModel from "../customer/customerModel";
 
 export class Order {
   constructor(
@@ -98,6 +99,7 @@ export class Order {
         });
 
         try {
+          const customer = await customerModel.findById(customerId).lean();
           const createdOrdersDocs = await orderModel.create(
             [
               {
@@ -105,6 +107,7 @@ export class Order {
                 address,
                 comment,
                 customerId,
+                customer,
                 total: finalAmount,
                 discount: discountAmount,
                 taxes,
@@ -118,7 +121,13 @@ export class Order {
             { session },
           );
 
-          const createdOrderPlain = createdOrdersDocs[0].toObject();
+          // Populate customerId
+          const populatedOrder = await orderModel
+            .findById(createdOrdersDocs[0]._id)
+            .populate("customerId","firstName lastName")
+            .session(session); // optional: keep it inside transaction
+
+          const createdOrderPlain = populatedOrder.toObject();
           newOrder = [createdOrderPlain]; // Assign the plain object to newOrder
 
           await idempotencyModel.create(
@@ -140,7 +149,7 @@ export class Order {
 
       const brokerMessage = {
         event_type: OrderEvents.ORDER_CREATED,
-        data: { ...newOrder[0], customerId },
+        data: { ...newOrder[0] },
       };
 
       // Payment processing
@@ -152,7 +161,11 @@ export class Order {
           idempotencyKey: idempotencyKey as string,
         });
 
-        await this.broker.sendMessage("order", JSON.stringify(brokerMessage),newOrder[0]._id.toString());
+        await this.broker.sendMessage(
+          "order",
+          JSON.stringify(brokerMessage),
+          newOrder[0]._id.toString(),
+        );
         this.logger.info("Order created and message sent to broker", {
           orderId: newOrder[0]._id.toString(),
           customerId,
@@ -163,7 +176,11 @@ export class Order {
         });
       }
 
-      await this.broker.sendMessage("order", JSON.stringify(brokerMessage),newOrder[0]._id.toString());
+      await this.broker.sendMessage(
+        "order",
+        JSON.stringify(brokerMessage),
+        newOrder[0]._id.toString(),
+      );
       this.logger.info("Order created and message sent to broker", {
         orderId: newOrder[0]._id.toString(),
         customerId,
@@ -371,6 +388,7 @@ export class Order {
       // check if the role is manager
       const isManager = req.auth.role === ROLES.MANAGER;
       const managerTenantId = req.auth?.tenantId;
+
       if (isManager && managerTenantId === order.tenantId) {
         return res.json(order);
       }
@@ -396,7 +414,11 @@ export class Order {
     }
   };
 
-  updateOrderStatus = async (req: AuthRequest, res: Response, next:NextFunction) => {
+  updateOrderStatus = async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction,
+  ) => {
     try {
       const { orderId } = req.params;
       const { role, tenantId } = req.auth;
@@ -424,7 +446,7 @@ export class Order {
         if (role === ROLES.MANAGER) {
           const isMyRestaurant = tenantId === order.tenantId;
           if (!isMyRestaurant) {
-             return next(createHttpError(403, "Not allowed."))
+            return next(createHttpError(403, "Not allowed."));
           }
         }
 
@@ -435,19 +457,23 @@ export class Order {
 
         // publish message to kafka
         const brokerMessage = {
-        event_type: OrderEvents.ORDER_UPDATED,
-        data: { updatedOrder },
-      };
+          event_type: OrderEvents.ORDER_UPDATED,
+          data: { ...updatedOrder.toObject() },
+        };
 
-        await this.broker.sendMessage("order", JSON.stringify(brokerMessage),updatedOrder._id.toString());
-      this.logger.info("Order created and message sent to broker", {
-        orderId: updatedOrder._id.toString()});
+        await this.broker.sendMessage(
+          "order",
+          JSON.stringify(brokerMessage),
+          updatedOrder._id.toString(),
+        );
+        this.logger.info("Order created and message sent to broker", {
+          orderId: updatedOrder._id.toString(),
+        });
 
-        return res.json({_id: updatedOrder._id});
+        return res.json({ _id: updatedOrder._id });
       }
 
-      return next(createHttpError(403, "Not allowed."))
-
+      return next(createHttpError(403, "Not allowed."));
     } catch (err) {
       throw createHttpError(500, "Failed to update status!");
     }

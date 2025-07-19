@@ -29,12 +29,11 @@ export class PaymentController {
         },
         { new: true }, // return the updated document
       );
-
       // Send message to broker
       const brokerMessage = {
         event_type: OrderEvents.PAYMENT_STATUS_UPDATE,
         data: {
-          updatedOrder,
+          ...updatedOrder.toObject(),
         },
       };
 
