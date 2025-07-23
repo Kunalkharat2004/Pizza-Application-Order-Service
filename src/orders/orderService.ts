@@ -57,13 +57,14 @@ export class OrderService {
           from: "customers",
           localField: "customerId",
           foreignField: "_id",
-          as: "customer",
+          as: "customerId",
           pipeline: [
             {
               $project: {
                 _id: 1,
                 firstName: 1,
                 lastName: 1,
+                email: 1,
               },
             },
           ],
@@ -74,6 +75,9 @@ export class OrderService {
           createdAt: -1, // Sort by creation date in descending order
         },
       },
+      {
+        $unwind: "$customerId", // Unwind the customerId array to get a single object
+      }
     ]);
 
     const result = orderModel.aggregatePaginate(aggregate, paginateOptions);
@@ -101,7 +105,7 @@ export class OrderService {
           },
           projection,
         )
-        .populate("customerId", ["firstName", "lastName"])
+        .populate("customerId", ["firstName", "lastName", "email"])
         .exec();
 
       if (!order) {

@@ -121,17 +121,9 @@ export class Order {
             { session },
           );
 
-          // Populate customerId
-          const populatedOrder = await orderModel
-            .findById(createdOrdersDocs[0]._id)
-            .populate("customerId","firstName lastName")
-            .session(session); // optional: keep it inside transaction
-
-          const createdOrderPlain = populatedOrder.toObject();
-          newOrder = [createdOrderPlain]; // Assign the plain object to newOrder
-
+          newOrder = [createdOrdersDocs[0]]; // Assign the plain object to newOrder
           await idempotencyModel.create(
-            [{ key: idempotencyKey, response: createdOrderPlain }],
+            [{ key: idempotencyKey, response: newOrder[0] }],
             { session },
           );
 
@@ -147,9 +139,14 @@ export class Order {
         }
       }
 
+  const customer = await customerModel
+    .findOne({ _id: newOrder[0].customerId })
+    .select("firstName lastName email");
+
+
       const brokerMessage = {
         event_type: OrderEvents.ORDER_CREATED,
-        data: { ...newOrder[0] },
+        data: { ...newOrder[0], customerId: customer },
       };
 
       // Payment processing

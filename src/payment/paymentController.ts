@@ -28,7 +28,9 @@ export class PaymentController {
             : PaymentStatus.FAILED,
         },
         { new: true }, // return the updated document
-      );
+      )
+      .populate("customerId","firstName lastName email")
+      .exec();
       // Send message to broker
       const brokerMessage = {
         event_type: OrderEvents.PAYMENT_STATUS_UPDATE,
