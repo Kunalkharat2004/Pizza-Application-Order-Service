@@ -1,4 +1,4 @@
-import { Address, Customer } from "../customer/customerTypes";
+import { Address } from "../customer/customerTypes";
 import mongoose from "mongoose";
 
 export interface IAttributeConfiguration {
