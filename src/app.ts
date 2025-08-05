@@ -22,7 +22,7 @@ app.use(
 );
 
 app.get("/", (req: Request, res: Response) => {
-  res.json({ message: "Hello from order service service!" });
+  res.json({ message: "Hello from order service service!." });
 });
 
 app.use("/api/customer", customerRouter);
