@@ -1,10 +1,10 @@
 
 import config from "config";
-import connectDB from "./config/db";
-import app from "./app";
-import logger from "./config/logger";
-import { createMessageBroker } from "./common/factories/brokerFactory";
-import { MessageBroker } from "./types/broker";
+import connectDB from "./src/config/db";
+import app from "./src/app";
+import logger from "./src/config/logger";
+import { createMessageBroker } from "./src/common/factories/brokerFactory";
+import { MessageBroker } from "./src/types/broker";
 
 const startServer = async () => {
   const PORT = config.get("server.port") || 5503;

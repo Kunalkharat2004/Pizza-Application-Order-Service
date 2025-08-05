@@ -42,6 +42,6 @@ EXPOSE 5501
 
 
 
-CMD ["node", "src/server.js"]
+CMD ["node", "server.js"]
 
 
