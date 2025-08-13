@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "cross-env NODE_ENV=development nodemon --legacy-watch src/server.ts",
+    "dev": "cross-env NODE_ENV=development nodemon --legacy-watch server.ts",
     "build": "npm run lint && tsc",
     "lint": "eslint .",
     "format": "prettier . --write"

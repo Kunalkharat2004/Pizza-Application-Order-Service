@@ -16,7 +16,7 @@ const ALLOWED_ORIGINS = config.get<string[]>("allowedOrigins") || [];
 console.log("Allowed Origins:", ALLOWED_ORIGINS);
 app.use(
   cors({
-    origin: ALLOWED_ORIGINS,
+    origin: ["https://www.cheezybite.me","https://admin.cheezybite.me"],
     credentials: true,
   }),
 );
