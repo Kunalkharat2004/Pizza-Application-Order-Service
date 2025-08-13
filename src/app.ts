@@ -14,9 +14,30 @@ app.use(express.json());
 
 const ALLOWED_ORIGINS = config.get<string[]>("allowedOrigins") || [];
 console.log("Allowed Origins:", ALLOWED_ORIGINS);
+
+// Enhanced CORS configuration with wildcard support
 app.use(
   cors({
-    origin: ["https://www.cheezybite.me","https://admin.cheezybite.me"],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Check if origin matches any allowed pattern
+      const isAllowed = ALLOWED_ORIGINS.some(allowedOrigin => {
+        if (allowedOrigin.includes('*')) {
+          // Convert wildcard pattern to regex
+          const regex = new RegExp(allowedOrigin.replace(/\*/g, '.*'));
+          return regex.test(origin);
+        }
+        return allowedOrigin === origin;
+      });
+      
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   }),
 );
