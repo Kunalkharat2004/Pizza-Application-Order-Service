@@ -57,7 +57,7 @@ export class Customer {
         event_type: CustomerEvents.CUSTOMER_UPDATED,
         data: {updatedCustomer},
       };
-        await this.broker.sendMessage("customer", JSON.stringify(brokerMessage),updatedCustomer._id.toString());
+        await this.broker.sendMessage("order", JSON.stringify(brokerMessage),updatedCustomer._id.toString());
       this.logger.info("Customer address updated and message sent to broker", {
         customerId: updatedCustomer._id.toString(),
       });
