@@ -25,6 +25,14 @@ router.get(
     asyncWrapper(OrderController.getAllOrders)
 )
 
+// GET all orders for dashboard
+router.get(
+    "/dashboard",
+    authenticate,
+    canAccess([ROLES.ADMIN, ROLES.MANAGER]),
+    asyncWrapper(OrderController.getAllOrdersForDashboard)
+)
+
 // GET orders of customer
 router.get(
     "/mine",

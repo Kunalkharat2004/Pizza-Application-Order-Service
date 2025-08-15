@@ -41,7 +41,7 @@ export class OrderService {
     return result;
   };
 
-  getOrder = async ({
+getOrder = async ({
     filters,
     paginateOptions,
   }: {
@@ -86,6 +86,62 @@ export class OrderService {
     }
     return result;
   };
+
+
+getOrderForDashBoard = async ({
+  filters,
+  paginateOptions,
+}: {
+  filters: FilterData;
+  paginateOptions: IPaginateOptions;
+}): Promise<{ orders: AggregatePaginateResult<OrderType>, totalSales: number, avgOrderPrice: number }> => {
+  
+  // 1️⃣ Calculate total sales & average order price
+ const salesStats = await orderModel.aggregate([
+  { $match: filters },
+  {
+    $group: {
+      _id: null,
+      totalSales: { $sum: "$total" },
+      avgOrderPrice: { $avg: "$total" }
+    }
+  },
+  {
+    $project: {
+      _id: 0,
+      totalSales: 1,
+      avgOrderPrice: { $round: ["$avgOrderPrice", 2] } // ⬅ round to 2 decimals
+    }
+  }
+]);
+
+  const totalSales = salesStats.length > 0 ? salesStats[0].totalSales : 0;
+  const avgOrderPrice = salesStats.length > 0 ? salesStats[0].avgOrderPrice : 0;
+  console.log("Total Sales: ", totalSales, "Avg Order Price: ", avgOrderPrice);
+
+  // 2️⃣ Get paginated orders
+  const aggregate = orderModel.aggregate([
+    { $match: filters },
+    {
+      $lookup: {
+        from: "customers",
+        localField: "customerId",
+        foreignField: "_id",
+        as: "customerId",
+        pipeline: [
+          { $project: { _id: 1, firstName: 1, lastName: 1, email: 1 } }
+        ],
+      },
+    },
+    { $sort: { createdAt: -1 } },
+    { $unwind: "$customerId" }
+  ]);
+
+  const orders = await orderModel.aggregatePaginate(aggregate, paginateOptions);
+
+  return { orders, totalSales, avgOrderPrice };
+};
+
 
   // GET single order service
   getSingleOrderById = async ({

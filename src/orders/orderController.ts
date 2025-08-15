@@ -307,7 +307,7 @@ export class Order {
     }
   };
 
-  getAllOrders = async (req: AuthRequest, res: Response) => {
+getAllOrders = async (req: AuthRequest, res: Response) => {
     try {
       const { tenantId, orderStatus, paymentMode, paymentStatus } = req.query;
       const managerTenantId = req.auth?.tenantId;
@@ -355,6 +355,38 @@ export class Order {
       throw error;
     }
   };
+
+getAllOrdersForDashboard = async (req: AuthRequest, res: Response) => {
+  try {
+    const { tenantId, orderStatus, paymentMode, paymentStatus } = req.query;
+    const managerTenantId = req.auth?.tenantId;
+
+    const filters: FilterData = {};
+    if (tenantId || managerTenantId)
+      filters.tenantId = (tenantId as string) || (managerTenantId as string);
+    if (orderStatus) filters.orderStatus = orderStatus as string;
+    if (paymentMode) filters.paymentMode = paymentMode as string;
+    if (paymentStatus) filters.paymentStatus = paymentStatus as string;
+
+    const paginateOptions = {
+      page: Number(req.query.page) || 1,
+      limit: Number(req.query.limit) || 10,
+      customLabels: customPaginateLabels,
+    };
+
+    if (req.auth?.role === ROLES.ADMIN || req.auth?.role === ROLES.MANAGER) {
+      const { orders, totalSales, avgOrderPrice } = await this.orderService.getOrderForDashBoard({
+        filters,
+        paginateOptions,
+      });
+      return res.json({ ...orders, totalSales, avgOrderPrice });
+    }
+
+    throw createHttpError(403, "You are not authorize to access these resource.");
+  } catch (err) {
+    throw createHttpError(500, "Failed to load orders");
+  }
+};
 
   getSingleOrder = async (req: AuthRequest, res: Response) => {
     try {
