@@ -375,11 +375,11 @@ getAllOrdersForDashboard = async (req: AuthRequest, res: Response) => {
     };
 
     if (req.auth?.role === ROLES.ADMIN || req.auth?.role === ROLES.MANAGER) {
-      const { orders, totalSales, avgOrderPrice } = await this.orderService.getOrderForDashBoard({
+      const { orders, totalSales, avgOrderPrice,orderStatusCounts,monthlySalesData } = await this.orderService.getOrderForDashBoard({
         filters,
         paginateOptions,
       });
-      return res.json({ ...orders, totalSales, avgOrderPrice });
+      return res.json({ ...orders, totalSales, avgOrderPrice, orderStatusCounts,monthlySalesData });
     }
 
     throw createHttpError(403, "You are not authorize to access these resource.");

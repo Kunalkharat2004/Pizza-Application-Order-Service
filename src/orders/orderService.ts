@@ -1,11 +1,12 @@
 import orderModel from "./orderModel";
 import customerModel from "../customer/customerModel";
 import createHttpError from "http-errors";
-import { FilterData, OrderType } from "./orderTypes";
+import { FilterData, OrderStatus, OrderType } from "./orderTypes";
 import { IPaginateOptions } from "../types";
 import { AggregatePaginateResult } from "mongoose";
 
 export class OrderService {
+  
   getOrdersByUserId = async ({
     userId,
     paginateOptions,
@@ -94,32 +95,91 @@ getOrderForDashBoard = async ({
 }: {
   filters: FilterData;
   paginateOptions: IPaginateOptions;
-}): Promise<{ orders: AggregatePaginateResult<OrderType>, totalSales: number, avgOrderPrice: number }> => {
+}): Promise<{
+  orders: AggregatePaginateResult<OrderType>,
+  totalSales: number,
+  avgOrderPrice: number,
+  orderStatusCounts: { name: string, value: number }[],
+  monthlySalesData: { year: number, month: string, revenue: number, orders: number }[]
+}> => {
   
-  // 1️⃣ Calculate total sales & average order price
- const salesStats = await orderModel.aggregate([
-  { $match: filters },
-  {
-    $group: {
-      _id: null,
-      totalSales: { $sum: "$total" },
-      avgOrderPrice: { $avg: "$total" }
+  const orderStatusNameMap: Record<OrderStatus, string> = {
+    [OrderStatus.RECEIVED]: "Received",
+    [OrderStatus.CONFIRMED]: "Confirmed",
+    [OrderStatus.PREPARED]: "Preparing",
+    [OrderStatus.OUT_FOR_DELIVERY]: "Out for Delivery",
+    [OrderStatus.DELIVERED]: "Delivered",
+  };
+
+  // 1️⃣ Total sales & average order price
+  const salesStats = await orderModel.aggregate([
+    { $match: filters },
+    {
+      $group: {
+        _id: null,
+        totalSales: { $sum: "$total" },
+        avgOrderPrice: { $avg: "$total" }
+      }
+    },
+    {
+      $project: {
+        _id: 0,
+        totalSales: 1,
+        avgOrderPrice: { $round: ["$avgOrderPrice", 2] }
+      }
     }
-  },
-  {
-    $project: {
-      _id: 0,
-      totalSales: 1,
-      avgOrderPrice: { $round: ["$avgOrderPrice", 2] } // ⬅ round to 2 decimals
-    }
-  }
-]);
+  ]);
 
   const totalSales = salesStats.length > 0 ? salesStats[0].totalSales : 0;
   const avgOrderPrice = salesStats.length > 0 ? salesStats[0].avgOrderPrice : 0;
-  console.log("Total Sales: ", totalSales, "Avg Order Price: ", avgOrderPrice);
 
-  // 2️⃣ Get paginated orders
+  // 2️⃣ Order status counts
+  const statusStats = await orderModel.aggregate([
+    { $match: filters },
+    {
+      $group: {
+        _id: "$orderStatus",
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const orderStatusCounts = statusStats.map(stat => ({
+    name: orderStatusNameMap[stat._id as OrderStatus] || stat._id,
+    value: stat.count
+  }));
+
+  Object.values(OrderStatus).forEach(status => {
+    if (!orderStatusCounts.find(s => s.name === orderStatusNameMap[status])) {
+      orderStatusCounts.push({ name: orderStatusNameMap[status], value: 0 });
+    }
+  });
+
+  orderStatusCounts.sort((a, b) => b.value - a.value);
+
+  // 3️⃣ Monthly sales data with YEAR included
+  const rawMonthlySales = await orderModel.aggregate([
+    { $match: filters },
+    {
+      $group: {
+        _id: { year: { $year: "$createdAt" }, month: { $month: "$createdAt" } },
+        revenue: { $sum: "$total" },
+        orders: { $sum: 1 }
+      }
+    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } }
+  ]);
+
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const monthlySalesData = rawMonthlySales.map(m => ({
+    year: m._id.year,
+    month: months[m._id.month - 1],
+    revenue: m.revenue,
+    orders: m.orders
+  }));
+
+  // 4️⃣ Paginated orders
   const aggregate = orderModel.aggregate([
     { $match: filters },
     {
@@ -139,8 +199,9 @@ getOrderForDashBoard = async ({
 
   const orders = await orderModel.aggregatePaginate(aggregate, paginateOptions);
 
-  return { orders, totalSales, avgOrderPrice };
+  return { orders, totalSales, avgOrderPrice, orderStatusCounts, monthlySalesData };
 };
+
 
 
   // GET single order service
